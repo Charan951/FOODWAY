@@ -11,13 +11,20 @@ export const createEditShop=async (req,res) => {
        } 
        let shop=await Shop.findOne({owner:req.userId})
        if(!shop){
+        // For new shop creation, image is required
+        if(!image){
+            return res.status(400).json({message:"Shop image is required"})
+        }
         shop=await Shop.create({
         name,city,state,address,image,owner:req.userId
        })
        }else{
-         shop=await Shop.findByIdAndUpdate(shop._id,{
-        name,city,state,address,image,owner:req.userId
-       },{new:true})
+         // For shop update, only update image if new one is provided
+         const updateData = {name,city,state,address,owner:req.userId}
+         if(image){
+             updateData.image = image
+         }
+         shop=await Shop.findByIdAndUpdate(shop._id,updateData,{new:true})
        }
       
        await shop.populate("owner items")
@@ -34,7 +41,7 @@ export const getMyShop=async (req,res) => {
             options:{sort:{updatedAt:-1}}
         })
         if(!shop){
-            return null
+            return res.status(200).json(null)
         }
         return res.status(200).json(shop)
     } catch (error) {

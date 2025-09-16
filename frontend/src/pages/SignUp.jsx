@@ -45,26 +45,33 @@ function SignUp() {
         if(!mobile){
           return setErr("mobile no is required")
         }
-        const provider=new GoogleAuthProvider()
-        const result=await signInWithPopup(auth,provider)
-  try {
-    const {data}=await axios.post(`${serverUrl}/api/auth/google-auth`,{
-        fullName:result.user.displayName,
-        email:result.user.email,
-        role,
-        mobile
-    },{withCredentials:true})
-   dispatch(setUserData(data))
-  } catch (error) {
-    console.log(error)
-  }
-     }
+        setLoading(true)
+        try {
+            const provider=new GoogleAuthProvider()
+            const result=await signInWithPopup(auth,provider)
+            
+            const {data}=await axios.post(`${serverUrl}/api/auth/google-auth`,{
+                fullName:result.user.displayName,
+                email:result.user.email,
+                role,
+                mobile
+            },{withCredentials:true})
+            dispatch(setUserData(data))
+            setErr("")
+            setLoading(false)
+            navigate("/")
+        } catch (error) {
+            console.log(error)
+            setErr(error?.response?.data?.message || "Google sign-up failed")
+            setLoading(false)
+        }
+      }
     return (
         <div className='min-h-screen w-full flex items-center justify-center p-4' style={{ backgroundColor: bgColor }}>
             <div className={`bg-white rounded-xl shadow-lg w-full max-w-md p-8 border-[1px] `} style={{
                 border: `1px solid ${borderColor}`
             }}>
-                <h1 className={`text-3xl font-bold mb-2 `} style={{ color: primaryColor }}>Vingo</h1>
+                <h1 className={`text-3xl font-bold mb-2 `} style={{ color: primaryColor }}>FoodWay</h1>
                 <p className='text-gray-600 mb-8'> Create your account to get started with delicious food deliveries
                 </p>
 

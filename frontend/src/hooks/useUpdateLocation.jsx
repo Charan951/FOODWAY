@@ -11,13 +11,25 @@ function useUpdateLocation() {
  
     useEffect(()=>{
 const updateLocation=async (lat,lon) => {
-    const result=await axios.post(`${serverUrl}/api/user/update-location`,{lat,lon},{withCredentials:true})
-    console.log(result.data)
+    try {
+        const result=await axios.post(`${serverUrl}/api/user/update-location`,{lat,lon},{withCredentials:true})
+        console.log(result.data)
+    } catch (error) {
+        // Only log errors that are not authentication-related (401/403)
+        if (error.response && ![401, 403].includes(error.response.status)) {
+            console.log('Error updating location:', error)
+        }
+    }
 }
 
-navigator.geolocation.watchPosition((pos)=>{
-    updateLocation(pos.coords.latitude,pos.coords.longitude)
-})
+// Only update location if user is authenticated
+if(userData) {
+    navigator.geolocation.watchPosition((pos)=>{
+        updateLocation(pos.coords.latitude,pos.coords.longitude)
+    }, (error) => {
+        console.log('Geolocation error:', error)
+    })
+}
     },[userData])
 }
 

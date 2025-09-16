@@ -40,11 +40,22 @@ useUpdateLocation()
   useEffect(()=>{
 const socketInstance=io(serverUrl,{withCredentials:true})
 dispatch(setSocket(socketInstance))
+
 socketInstance.on('connect',()=>{
-if(userData){
-  socketInstance.emit('identity',{userId:userData._id})
-}
+  console.log('Socket connected:', socketInstance.id)
+  if(userData){
+    socketInstance.emit('identity',{userId:userData._id})
+  }
 })
+
+socketInstance.on('disconnect',()=>{
+  console.log('Socket disconnected')
+})
+
+socketInstance.on('connect_error',(error)=>{
+  console.error('Socket connection error:', error)
+})
+
 return ()=>{
   socketInstance.disconnect()
 }

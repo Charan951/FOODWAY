@@ -13,7 +13,11 @@ function useGetCurrentUser() {
             dispatch(setUserData(result.data))
   
     } catch (error) {
-        console.log(error)
+        // Only log errors that are not authentication-related (401/403)
+        if (error.response && ![401, 403].includes(error.response.status)) {
+            console.log('Error fetching current user:', error)
+        }
+        // For authentication errors, silently handle - user is not logged in
     }
 }
 fetchUser()
