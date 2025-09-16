@@ -74,11 +74,21 @@ function CheckOut() {
   }
 
   const handlePlaceOrder=async () => {
+    // Validate required fields
+    if (!addressInput || addressInput.trim() === '') {
+      alert('Please enter a delivery address');
+      return;
+    }
+    if (!location.lat || !location.lon) {
+      alert('Please select a location on the map');
+      return;
+    }
+    
     try {
       const result=await axios.post(`${serverUrl}/api/order/place-order`,{
         paymentMethod,
         deliveryAddress:{
-          text:addressInput,
+          text:addressInput.trim(),
           latitude:location.lat,
           longitude:location.lon
         },

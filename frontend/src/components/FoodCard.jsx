@@ -79,7 +79,7 @@ const newQty=quantity-1
           name:data.name,
           price:data.price,
           image:data.image,
-          shop:data.shop,
+          shop:typeof data.shop === 'object' ? data.shop._id : data.shop,
           quantity,
           foodType:data.foodType
 })):null}}>
