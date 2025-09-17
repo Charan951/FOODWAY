@@ -33,6 +33,10 @@ const SuperAdminDashboard = () => {
     const [searchRole, setSearchRole] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
 
+    // User types data
+    const [userTypes, setUserTypes] = useState([]);
+    const [newUserType, setNewUserType] = useState({ name: '', description: '', deliveryAllowed: false });
+
     // Set axios defaults
     axios.defaults.baseURL = 'http://localhost:8000';
     axios.defaults.withCredentials = true;
@@ -48,6 +52,7 @@ const SuperAdminDashboard = () => {
         if (activeTab === 'owners') fetchPendingOwners();
         if (activeTab === 'categories') fetchCategories();
         if (activeTab === 'users') fetchUsers();
+        if (activeTab === 'usertypes') fetchUserTypes();
     }, [activeTab]);
 
     useEffect(() => {
@@ -200,6 +205,73 @@ const SuperAdminDashboard = () => {
         }
     };
 
+    // Fetch user types
+    const fetchUserTypes = async () => {
+        try {
+            setLoading(true);
+            const response = await axios.get('/api/superadmin/user-types');
+            setUserTypes(response.data);
+        } catch (error) {
+            console.error('Error fetching user types:', error);
+            showMessage('Error fetching user types', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Create user type
+    const createUserType = async () => {
+        if (!newUserType.name.trim()) {
+            showMessage('User type name is required', 'error');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            await axios.post('/api/superadmin/user-types', newUserType);
+            showMessage('User type created successfully');
+            setNewUserType({ name: '', description: '', deliveryAllowed: false });
+            fetchUserTypes(); // Refresh the list
+        } catch (error) {
+            console.error('Error creating user type:', error);
+            showMessage('Error creating user type', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Update user type delivery status
+    const updateUserTypeDelivery = async (userTypeId, deliveryAllowed) => {
+        try {
+            setLoading(true);
+            await axios.put(`/api/superadmin/user-types/${userTypeId}/delivery`, { deliveryAllowed });
+            showMessage(`Delivery ${deliveryAllowed ? 'enabled' : 'disabled'} successfully`);
+            fetchUserTypes(); // Refresh the list
+        } catch (error) {
+            console.error('Error updating user type delivery:', error);
+            showMessage('Error updating delivery status', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Delete user type
+    const deleteUserType = async (userTypeId) => {
+        if (!window.confirm('Are you sure you want to delete this user type?')) return;
+
+        try {
+            setLoading(true);
+            await axios.delete(`/api/superadmin/user-types/${userTypeId}`);
+            showMessage('User type deleted successfully');
+            fetchUserTypes(); // Refresh the list
+        } catch (error) {
+            console.error('Error deleting user type:', error);
+            showMessage('Error deleting user type', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Header */}
@@ -225,7 +297,8 @@ const SuperAdminDashboard = () => {
                             { id: 'dashboard', label: 'Dashboard' },
                             { id: 'owners', label: 'Owner Approvals' },
                             { id: 'categories', label: 'Categories' },
-                            { id: 'users', label: 'User Management' }
+                            { id: 'users', label: 'User Management' },
+                            { id: 'usertypes', label: 'User Types' }
                         ].map((tab) => (
                             <button
                                 key={tab.id}
@@ -452,6 +525,104 @@ const SuperAdminDashboard = () => {
                                                             </span>
                                                         )}
                                                     </div>
+                                                </div>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* User Types Management */}
+                {activeTab === 'usertypes' && (
+                    <div>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-6">User Types Management</h2>
+                        
+                        {/* Add User Type Form */}
+                        <div className="bg-white p-6 rounded-lg shadow mb-6">
+                            <h3 className="text-lg font-medium text-gray-900 mb-4">Add New User Type</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <input
+                                    type="text"
+                                    placeholder="User Type Name"
+                                    value={newUserType.name}
+                                    onChange={(e) => setNewUserType({ ...newUserType, name: e.target.value })}
+                                    className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Description"
+                                    value={newUserType.description}
+                                    onChange={(e) => setNewUserType({ ...newUserType, description: e.target.value })}
+                                    className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <div className="mt-4 flex items-center">
+                                <input
+                                    type="checkbox"
+                                    id="deliveryAllowed"
+                                    checked={newUserType.deliveryAllowed}
+                                    onChange={(e) => setNewUserType({ ...newUserType, deliveryAllowed: e.target.checked })}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                />
+                                <label htmlFor="deliveryAllowed" className="ml-2 block text-sm text-gray-900">
+                                    Allow Delivery for this User Type
+                                </label>
+                            </div>
+                            <button
+                                onClick={createUserType}
+                                disabled={loading}
+                                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                            >
+                                Add User Type
+                            </button>
+                        </div>
+
+                        {/* User Types List */}
+                        {loading ? (
+                            <div className="text-center py-4">Loading...</div>
+                        ) : userTypes.length === 0 ? (
+                            <div className="text-center py-8 text-gray-500">No user types found</div>
+                        ) : (
+                            <div className="bg-white shadow overflow-hidden sm:rounded-md">
+                                <ul className="divide-y divide-gray-200">
+                                    {userTypes.map((userType) => (
+                                        <li key={userType._id} className="px-6 py-4">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <h3 className="text-lg font-medium text-gray-900">{userType.name}</h3>
+                                                    <p className="text-sm text-gray-500">{userType.description}</p>
+                                                    <div className="mt-2">
+                                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                                            userType.deliveryAllowed 
+                                                                ? 'bg-green-100 text-green-800' 
+                                                                : 'bg-red-100 text-red-800'
+                                                        }`}>
+                                                            Delivery: {userType.deliveryAllowed ? 'Enabled' : 'Disabled'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex space-x-2">
+                                                    <button
+                                                        onClick={() => updateUserTypeDelivery(userType._id, !userType.deliveryAllowed)}
+                                                        className={`px-4 py-2 rounded-lg text-white ${
+                                                            userType.deliveryAllowed 
+                                                                ? 'bg-red-600 hover:bg-red-700' 
+                                                                : 'bg-green-600 hover:bg-green-700'
+                                                        }`}
+                                                        disabled={loading}
+                                                    >
+                                                        {userType.deliveryAllowed ? 'Disable Delivery' : 'Enable Delivery'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => deleteUserType(userType._id)}
+                                                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+                                                        disabled={loading}
+                                                    >
+                                                        Delete
+                                                    </button>
                                                 </div>
                                             </div>
                                         </li>

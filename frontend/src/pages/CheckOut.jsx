@@ -14,14 +14,15 @@ function CheckOut() {
   const { cartItems ,totalAmount,userData} = useSelector(state => state.user)
   const [addressInput, setAddressInput] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("cod")
+  const [orderType, setOrderType] = useState("delivery") // delivery or pickup
   const navigate=useNavigate()
   const dispatch = useDispatch()
-  const deliveryFee=totalAmount>500?0:40
+  const deliveryFee=orderType === "delivery" ? (totalAmount>500?0:40) : 0
   const AmountWithDeliveryFee=totalAmount+deliveryFee
 
   const handlePlaceOrder=async () => {
     // Validate required fields
-    if (!addressInput || addressInput.trim() === '') {
+    if (orderType === "delivery" && (!addressInput || addressInput.trim() === '')) {
       alert('Please enter a delivery address');
       return;
     }
@@ -29,9 +30,10 @@ function CheckOut() {
     try {
       const result=await axios.post(`${serverUrl}/api/order/place-order`,{
         paymentMethod,
-        deliveryAddress:{
+        orderType,
+        deliveryAddress: orderType === "delivery" ? {
           text:addressInput.trim()
-        },
+        } : null,
         totalAmount:AmountWithDeliveryFee,
         cartItems
       },{withCredentials:true})
@@ -47,7 +49,12 @@ function CheckOut() {
        }
     
     } catch (error) {
-      console.log(error)
+      console.error("Place order error:", error)
+      if (error.response) {
+        alert(`Order failed: ${error.response.data.message || 'Unknown error'}`)
+      } else {
+        alert('Order failed: Network error')
+      }
     }
   }
 
@@ -91,6 +98,35 @@ const openRazorpayWindow=(orderId,razorOrder)=>{
       <div className='w-full max-w-[900px] bg-white rounded-2xl shadow-xl p-6 space-y-6'>
         <h1 className='text-2xl font-bold text-gray-800'>Checkout</h1>
 
+        {/* Order Type Selection */}
+        <section>
+          <h2 className='text-lg font-semibold mb-3 text-gray-800'>Order Type</h2>
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+            <div className={`flex items-center gap-3 rounded-xl border p-4 text-left transition cursor-pointer ${orderType === "delivery" ? "border-[#ff4d2d] bg-orange-50 shadow" : "border-gray-200 hover:border-gray-300"
+              }`} onClick={() => setOrderType("delivery")}>
+              <span className='inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100'>
+                <MdDeliveryDining className='text-blue-600 text-xl' />
+              </span>
+              <div>
+                <p className='font-medium text-gray-800'>Delivery</p>
+                <p className='text-xs text-gray-500'>Get food delivered to your location</p>
+              </div>
+            </div>
+            <div className={`flex items-center gap-3 rounded-xl border p-4 text-left transition cursor-pointer ${orderType === "pickup" ? "border-[#ff4d2d] bg-orange-50 shadow" : "border-gray-200 hover:border-gray-300"
+              }`} onClick={() => setOrderType("pickup")}>
+              <span className='inline-flex h-10 w-10 items-center justify-center rounded-full bg-green-100'>
+                <IoLocationSharp className='text-green-600 text-xl' />
+              </span>
+              <div>
+                <p className='font-medium text-gray-800'>Pickup</p>
+                <p className='text-xs text-gray-500'>Collect your order from restaurant</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Delivery Location - Only show for delivery orders */}
+        {orderType === "delivery" && (
         <section>
           <h2 className='text-lg font-semibold mb-2 flex items-center gap-2 text-gray-800'><IoLocationSharp className='text-[#ff4d2d]' /> Delivery Location</h2>
           <div className='space-y-3'>
@@ -106,6 +142,7 @@ const openRazorpayWindow=(orderId,razorOrder)=>{
             </p>
           </div>
         </section>
+        )}
 
         <section>
           <h2 className='text-lg font-semibold mb-3 text-gray-800'>Payment Method</h2>
@@ -155,8 +192,8 @@ const openRazorpayWindow=(orderId,razorOrder)=>{
   <span>{totalAmount}</span>
 </div>
 <div className='flex justify-between text-gray-700'>
-  <span>Delivery Fee</span>
-  <span>{deliveryFee==0?"Free":deliveryFee}</span>
+  <span>{orderType === "delivery" ? "Delivery Fee" : "Pickup"}</span>
+  <span>{orderType === "delivery" ? (deliveryFee==0?"Free":deliveryFee) : "Free"}</span>
 </div>
 <div className='flex justify-between text-lg font-bold text-[#ff4d2d] pt-2'>
     <span>Total</span>

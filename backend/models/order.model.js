@@ -70,6 +70,11 @@ const orderSchema = new mongoose.Schema({
         latitude: Number,
         longitude: Number
     },
+    orderType: {
+        type: String,
+        enum: ['delivery', 'pickup'],
+        default: 'delivery'
+    },
     totalAmount: {
         type: Number
     }

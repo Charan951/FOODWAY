@@ -33,7 +33,7 @@ function SignUp() {
     useEffect(() => {
         const fetchUserTypes = async () => {
             try {
-                const response = await axios.get(`${serverUrl}/api/superadmin/user-types`);
+                const response = await axios.get(`${serverUrl}/api/auth/user-types`);
                 setUserTypes(response.data);
                 if (response.data.length > 0) {
                     setUserType(response.data[0].name); // Set first user type as default

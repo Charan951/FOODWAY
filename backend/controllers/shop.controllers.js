@@ -49,6 +49,54 @@ export const getMyShop=async (req,res) => {
     }
 }
 
+export const getAllShops = async (req, res) => {
+    try {
+        const shops = await Shop.find().populate("owner", "name email").select("name _id owner")
+        return res.status(200).json(shops)
+    } catch (error) {
+        return res.status(500).json({message: `get all shops error ${error}`})
+    }
+}
+
+export const fixShopOwners = async (req, res) => {
+    try {
+        // Find shops with null owners
+        const shopsWithoutOwners = await Shop.find({ owner: null })
+        console.log(`Found ${shopsWithoutOwners.length} shops without owners:`, shopsWithoutOwners)
+        
+        if (shopsWithoutOwners.length > 0) {
+            // Find a user to assign as owner (get the first available user)
+            const User = (await import("../models/user.model.js")).default
+            const availableUser = await User.findOne()
+            
+            if (availableUser) {
+                // Update all shops without owners to have this user as owner
+                const updateResult = await Shop.updateMany(
+                    { owner: null },
+                    { owner: availableUser._id }
+                )
+                
+                return res.status(200).json({
+                    message: `Fixed ${updateResult.modifiedCount} shops by assigning owner ${availableUser.email}`,
+                    shopsFixed: updateResult.modifiedCount,
+                    assignedOwner: availableUser.email
+                })
+            } else {
+                return res.status(400).json({
+                    message: "No users found to assign as shop owners"
+                })
+            }
+        }
+        
+        return res.status(200).json({
+            message: "No shops without owners found",
+            shops: []
+        })
+    } catch (error) {
+        return res.status(500).json({message: `fix shop owners error ${error}`})
+    }
+}
+
 export const getShopByCity=async (req,res) => {
     try {
         const {city}=req.params

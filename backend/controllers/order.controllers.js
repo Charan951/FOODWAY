@@ -15,21 +15,25 @@ let instance = new RazorPay({
 
 export const placeOrder = async (req, res) => {
     try {
-        const { cartItems, paymentMethod, deliveryAddress, totalAmount } = req.body
+        const { cartItems, paymentMethod, deliveryAddress, totalAmount, orderType } = req.body
         if (cartItems.length == 0 || !cartItems) {
             return res.status(400).json({ message: "cart is empty" })
         }
-        if (!deliveryAddress.text) {
-            return res.status(400).json({ message: "delivery address is required" })
+        
+        // Only require delivery address for delivery orders
+        if (orderType === "delivery" && (!deliveryAddress || !deliveryAddress.text)) {
+            return res.status(400).json({ message: "delivery address is required for delivery orders" })
         }
 
-        // Check if user has delivery permission
-        const user = await User.findById(req.userId)
-        
-        // For existing users without deliveryAllowed field, allow delivery by default
-        // For new users with user types, check their specific permission
-        if (user.deliveryAllowed === false) {
-            return res.status(403).json({ message: "Delivery not allowed for your user type. Please contact admin." })
+        // Check if user has delivery permission (only for delivery orders)
+        if (orderType === "delivery") {
+            const user = await User.findById(req.userId)
+            
+            // For existing users without deliveryAllowed field, allow delivery by default
+            // For new users with user types, check their specific permission
+            if (user.deliveryAllowed === false) {
+                return res.status(403).json({ message: "Delivery not allowed for your user type. Please select pickup option." })
+            }
         }
 
         const groupItemsByShop = {}
@@ -42,10 +46,18 @@ export const placeOrder = async (req, res) => {
             groupItemsByShop[shopId].push(item)
         });
 
+        console.log("Cart items:", JSON.stringify(cartItems, null, 2))
+        console.log("Grouped items by shop:", JSON.stringify(groupItemsByShop, null, 2))
+
         const shopOrders = await Promise.all(Object.keys(groupItemsByShop).map(async (shopId) => {
+            console.log(`Looking for shop with ID: ${shopId}`)
             const shop = await Shop.findById(shopId).populate("owner")
+            console.log(`Found shop:`, shop)
             if (!shop) {
                 throw new Error(`Shop with ID ${shopId} not found`)
+            }
+            if (!shop.owner) {
+                throw new Error(`Shop ${shopId} (${shop.name}) has no owner assigned. Please contact support.`)
             }
             const items = groupItemsByShop[shopId]
             const subtotal = items.reduce((sum, i) => sum + Number(i.price) * Number(i.quantity), 0)
@@ -60,8 +72,7 @@ export const placeOrder = async (req, res) => {
                     name: i.name
                 }))
             }
-        }
-        ))
+        }))
 
         if (paymentMethod == "online") {
             const razorOrder = await instance.orders.create({
@@ -72,7 +83,8 @@ export const placeOrder = async (req, res) => {
             const newOrder = await Order.create({
                 user: req.userId,
                 paymentMethod,
-                deliveryAddress,
+                deliveryAddress: orderType === "delivery" ? deliveryAddress : null,
+                orderType: orderType || "delivery",
                 totalAmount,
                 shopOrders,
                 razorpayOrderId: razorOrder.id,
@@ -89,7 +101,8 @@ export const placeOrder = async (req, res) => {
         const newOrder = await Order.create({
             user: req.userId,
             paymentMethod,
-            deliveryAddress,
+            deliveryAddress: orderType === "delivery" ? deliveryAddress : null,
+            orderType: orderType || "delivery",
             totalAmount,
             shopOrders
         })
@@ -118,11 +131,10 @@ export const placeOrder = async (req, res) => {
             });
         }
 
-
-
         return res.status(201).json(newOrder)
     } catch (error) {
-        return res.status(500).json({ message: `place order error ${error}` })
+        console.error("Place order error:", error)
+        return res.status(500).json({ message: `place order error: ${error.message}` })
     }
 }
 
