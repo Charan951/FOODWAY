@@ -25,7 +25,7 @@ export const signUp=async (req,res) => {
             password:hashedPassword
         })
 
-        const token=await genToken(user._id)
+    const token=await genToken(user)
         res.cookie("token",token,{
             secure:false,
             sameSite:"strict",
@@ -53,7 +53,7 @@ export const signIn=async (req,res) => {
          return res.status(400).json({message:"incorrect Password"})
      }
 
-        const token=await genToken(user._id)
+    const token=await genToken(user)
         res.cookie("token",token,{
             secure:false,
             sameSite:"strict",
@@ -140,7 +140,7 @@ export const googleAuth=async (req,res) => {
             })
         }
 
-        const token=await genToken(user._id)
+    const token=await genToken(user)
         res.cookie("token",token,{
             secure:false,
             sameSite:"strict",
