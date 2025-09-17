@@ -5,7 +5,7 @@ import axios from 'axios'
 import { serverUrl } from '../App'
 import { useEffect } from 'react'
 import { useState } from 'react'
-import DeliveryBoyTracking from './DeliveryBoyTracking'
+
 import { ClipLoader } from 'react-spinners'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
@@ -15,41 +15,14 @@ function DeliveryBoy() {
   const [showOtpBox,setShowOtpBox]=useState(false)
   const [availableAssignments,setAvailableAssignments]=useState(null)
   const [otp,setOtp]=useState("")
-  const [todayDeliveries,setTodayDeliveries]=useState([])
-const [deliveryBoyLocation,setDeliveryBoyLocation]=useState(null)
+  const [todayDeliveries,setTodayDeliveries]=useState({ totalDeliveries: 0, chartData: [], deliveries: [] })
+
 const [loading,setLoading]=useState(false)
 const [message,setMessage]=useState("")
-  useEffect(()=>{
-if(!socket || userData.role!=="deliveryBoy") return
-let watchId
-if(navigator.geolocation){
-watchId=navigator.geolocation.watchPosition((position)=>{
-    const latitude=position.coords.latitude
-    const longitude=position.coords.longitude
-    setDeliveryBoyLocation({lat:latitude,lon:longitude})
-    socket.emit('updateLocation',{
-      latitude,
-      longitude,
-      userId:userData._id
-    })
-  }),
-  (error)=>{
-    console.log(error)
-  },
-  {
-    enableHighAccuracy:true
-  }
-}
-
-return ()=>{
-  if(watchId)navigator.geolocation.clearWatch(watchId)
-}
-
-  },[socket,userData])
+  // Removed geolocation tracking since we're using text-based addresses
 
 
-const ratePerDelivery=50
-const totalEarning=todayDeliveries.reduce((sum,d)=>sum + d.count*ratePerDelivery,0)
+
 
 
 
@@ -87,8 +60,15 @@ const totalEarning=todayDeliveries.reduce((sum,d)=>sum + d.count*ratePerDelivery
     socket.on('newAssignment',(data)=>{
       setAvailableAssignments(prev=>([...prev,data]))
     })
+    
+    socket.on('assignmentTaken',(data)=>{
+      // Remove the assignment from available assignments when taken by another delivery boy
+      setAvailableAssignments(prev => prev.filter(assignment => assignment.assignmentId !== data.assignmentId))
+    })
+    
     return ()=>{
       socket.off('newAssignment')
+      socket.off('assignmentTaken')
     }
   },[socket])
   
@@ -99,11 +79,26 @@ const totalEarning=todayDeliveries.reduce((sum,d)=>sum + d.count*ratePerDelivery
         orderId:currentOrder._id,shopOrderId:currentOrder.shopOrder._id
       },{withCredentials:true})
       setLoading(false)
-       setShowOtpBox(true)
-    console.log(result.data)
+      setShowOtpBox(true)
+      
+      // Show appropriate message based on whether it's existing or new OTP
+      if (result.data.isExisting) {
+        setMessage(`Existing OTP resent to ${currentOrder.user.fullName}`)
+      } else {
+        setMessage(`New OTP sent to ${currentOrder.user.fullName}`)
+      }
+      
+      console.log(result.data)
     } catch (error) {
       console.log(error)
       setLoading(false)
+      
+      // Handle specific error cases
+      if (error.response && error.response.status === 400) {
+        setMessage(error.response.data.message || "Unable to send OTP")
+      } else {
+        setMessage("Failed to send OTP. Please try again.")
+      }
     }
   }
    const verifyOtp=async () => {
@@ -114,9 +109,20 @@ const totalEarning=todayDeliveries.reduce((sum,d)=>sum + d.count*ratePerDelivery
       },{withCredentials:true})
     console.log(result.data)
     setMessage(result.data.message)
-    location.reload()
+    // Refresh the page to update the order status
+    window.location.reload()
     } catch (error) {
-      console.log(error)
+      // Only log unexpected errors
+      if (error.response && error.response.status !== 400) {
+        console.log('OTP verification error:', error)
+      }
+      
+      // Show appropriate error message based on status
+      if (error.response && error.response.status === 400) {
+        setMessage(error.response.data.message || "Invalid OTP. Please check and try again.")
+      } else {
+        setMessage("Failed to verify OTP. Please try again.")
+      }
     }
   }
 
@@ -144,14 +150,14 @@ handleTodayDeliveries()
       <div className='w-full max-w-[800px] flex flex-col gap-5 items-center'>
     <div className='bg-white rounded-2xl shadow-md p-5 flex flex-col justify-start items-center w-[90%] border border-orange-100 text-center gap-2'>
 <h1 className='text-xl font-bold text-[#ff4d2d]'>Welcome, {userData.fullName}</h1>
-<p className='text-[#ff4d2d] '><span className='font-semibold'>Latitude:</span> {deliveryBoyLocation?.lat}, <span className='font-semibold'>Longitude:</span> {deliveryBoyLocation?.lon}</p>
+<p className='text-gray-600'>Ready to deliver orders in your area</p>
     </div>
 
 <div className='bg-white rounded-2xl shadow-md p-5 w-[90%] mb-6 border border-orange-100'>
   <h1 className='text-lg font-bold mb-3 text-[#ff4d2d] '>Today Deliveries</h1>
 
   <ResponsiveContainer width="100%" height={200}>
-   <BarChart data={todayDeliveries}>
+   <BarChart data={todayDeliveries.chartData}>
   <CartesianGrid strokeDasharray="3 3"/>
   <XAxis dataKey="hour" tickFormatter={(h)=>`${h}:00`}/>
     <YAxis  allowDecimals={false}/>
@@ -160,10 +166,7 @@ handleTodayDeliveries()
    </BarChart>
   </ResponsiveContainer>
 
-  <div className='max-w-sm mx-auto mt-6 p-6 bg-white rounded-2xl shadow-lg text-center'>
-<h1 className='text-xl font-semibold text-gray-800 mb-2'>Today's Earning</h1>
-<span className='text-3xl font-bold text-green-600'>₹{totalEarning}</span>
-  </div>
+
 </div>
 
 
@@ -197,15 +200,11 @@ availableAssignments.map((a,index)=>(
  <p className='text-xs text-gray-400'>{currentOrder.shopOrder.shopOrderItems.length} items | {currentOrder.shopOrder.subtotal}</p>
 </div>
 
- <DeliveryBoyTracking data={{ 
-  deliveryBoyLocation:deliveryBoyLocation || {
-        lat: userData.location.coordinates[1],
-        lon: userData.location.coordinates[0]
-      },
-      customerLocation: {
-        lat: currentOrder.deliveryAddress.latitude,
-        lon: currentOrder.deliveryAddress.longitude
-      }}} />
+ <div className='mt-4 p-4 border rounded-xl bg-blue-50'>
+  <h3 className='font-semibold text-sm mb-2'>📍 Delivery Information</h3>
+  <p className='text-sm text-gray-600 mb-1'><span className='font-medium'>Delivery Address:</span> {currentOrder.deliveryAddress.text}</p>
+  <p className='text-sm text-gray-600'><span className='font-medium'>Customer:</span> {currentOrder.user.fullName}</p>
+ </div>
 {!showOtpBox ? <button className='mt-4 w-full bg-green-500 text-white font-semibold py-2 px-4 rounded-xl shadow-md hover:bg-green-600 active:scale-95 transition-all duration-200' onClick={sendOtp} disabled={loading}>
 {loading?<ClipLoader size={20} color='white'/> :"Mark As Delivered"}
  </button>:<div className='mt-4 p-4 border rounded-xl bg-gray-50'>

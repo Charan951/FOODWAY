@@ -19,8 +19,8 @@ export const placeOrder = async (req, res) => {
         if (cartItems.length == 0 || !cartItems) {
             return res.status(400).json({ message: "cart is empty" })
         }
-        if (!deliveryAddress.text || !deliveryAddress.latitude || !deliveryAddress.longitude) {
-            return res.status(400).json({ message: "send complete deliveryAddress" })
+        if (!deliveryAddress.text) {
+            return res.status(400).json({ message: "delivery address is required" })
         }
 
         const groupItemsByShop = {}
@@ -170,11 +170,15 @@ export const verifyPayment = async (req, res) => {
 export const getMyOrders = async (req, res) => {
     try {
         const user = await User.findById(req.userId)
+        if (!user) {
+            return res.status(404).json({ message: "User not found" })
+        }
+        
         if (user.role == "user") {
             const orders = await Order.find({ user: req.userId })
                 .sort({ createdAt: -1 })
                 .populate("shopOrders.shop", "name")
-                .populate("shopOrders.owner", "name email mobile")
+                .populate("shopOrders.owner", "fullName email mobile")
                 .populate("shopOrders.shopOrderItems.item", "name image price")
 
             return res.status(200).json(orders)
@@ -182,27 +186,61 @@ export const getMyOrders = async (req, res) => {
             const orders = await Order.find({ "shopOrders.owner": req.userId })
                 .sort({ createdAt: -1 })
                 .populate("shopOrders.shop", "name")
-                .populate("user")
+                .populate("user", "fullName email mobile")
                 .populate("shopOrders.shopOrderItems.item", "name image price")
                 .populate("shopOrders.assignedDeliveryBoy", "fullName mobile")
 
+            const filteredOrders = orders.map((order => {
+                const ownerShopOrder = order.shopOrders.find(o => o.owner && o.owner._id.toString() === req.userId.toString())
+                if (!ownerShopOrder) return null
+                
+                return {
+                    _id: order._id,
+                    paymentMethod: order.paymentMethod,
+                    user: order.user,
+                    shopOrders: ownerShopOrder,
+                    createdAt: order.createdAt,
+                    deliveryAddress: order.deliveryAddress,
+                    payment: order.payment
+                }
+            })).filter(order => order !== null)
 
+            return res.status(200).json(filteredOrders)
+        } else if (user.role == "deliveryBoy") {
+            const orders = await Order.find({ "shopOrders.assignedDeliveryBoy": req.userId })
+                .sort({ createdAt: -1 })
+                .populate("shopOrders.shop", "name")
+                .populate("user", "fullName email mobile")
+                .populate("shopOrders.owner", "fullName email mobile")
+                .populate("shopOrders.shopOrderItems.item", "name image price")
+                .populate("shopOrders.assignedDeliveryBoy", "fullName mobile")
 
-            const filteredOrders = orders.map((order => ({
-                _id: order._id,
-                paymentMethod: order.paymentMethod,
-                user: order.user,
-                shopOrders: order.shopOrders.find(o => o.owner._id == req.userId),
-                createdAt: order.createdAt,
-                deliveryAddress: order.deliveryAddress,
-                payment: order.payment
-            })))
-
+            const filteredOrders = orders.map((order => {
+                const deliveryBoyShopOrder = order.shopOrders.find(o => 
+                    o.assignedDeliveryBoy && o.assignedDeliveryBoy._id.toString() === req.userId.toString()
+                )
+                if (!deliveryBoyShopOrder) return null
+                
+                return {
+                    _id: order._id,
+                    paymentMethod: order.paymentMethod,
+                    user: order.user,
+                    shopOrders: deliveryBoyShopOrder,
+                    createdAt: order.createdAt,
+                    deliveryAddress: order.deliveryAddress,
+                    payment: order.payment,
+                    deliveryOtp: deliveryBoyShopOrder.deliveryOtp,
+                    otpExpires: deliveryBoyShopOrder.otpExpires
+                }
+            })).filter(order => order !== null)
 
             return res.status(200).json(filteredOrders)
         }
 
+        return res.status(400).json({ message: "Invalid user role" })
+
     } catch (error) {
+        console.error("Get my orders error:", error)
         return res.status(500).json({ message: `get User order error ${error}` })
     }
 }
@@ -219,29 +257,36 @@ export const updateOrderStatus = async (req, res) => {
             return res.status(400).json({ message: "shop order not found" })
         }
         shopOrder.status = status
+        
+        // Auto-generate OTP when status changes to "out of delivery"
+        if (status == "out of delivery") {
+            // Only generate new OTP if no valid OTP exists
+            const now = Date.now()
+            if (!shopOrder.deliveryOtp || !shopOrder.otpExpires || shopOrder.otpExpires <= now) {
+                const otp = Math.floor(1000 + Math.random() * 9000).toString()
+                shopOrder.deliveryOtp = otp
+                shopOrder.otpExpires = Date.now() + 2 * 60 * 60 * 1000 // 2 hours expiration
+                shopOrder.lastOtpGeneratedAt = new Date()
+            }
+            // If valid OTP exists, keep using the same one
+        }
+        
         let deliveryBoysPayload = []
         if (status == "out of delivery" && !shopOrder.assignment) {
-            const { longitude, latitude } = order.deliveryAddress
-            const nearByDeliveryBoys = await User.find({
-                role: "deliveryBoy",
-                location: {
-                    $near: {
-                        $geometry: { type: "Point", coordinates: [Number(longitude), Number(latitude)] },
-                        $maxDistance: 5000
-                    }
-                }
+            // Get all delivery boys regardless of location
+            const allDeliveryBoys = await User.find({
+                role: "deliveryBoy"
             })
 
-            const nearByIds = nearByDeliveryBoys.map(b => b._id)
+            const allDeliveryBoyIds = allDeliveryBoys.map(b => b._id)
             const busyIds = await DeliveryAssignment.find({
-                assignedTo: { $in: nearByIds },
+                assignedTo: { $in: allDeliveryBoyIds },
                 status: { $nin: ["brodcasted", "completed"] }
-
             }).distinct("assignedTo")
 
             const busyIdSet = new Set(busyIds.map(id => String(id)))
 
-            const availableBoys = nearByDeliveryBoys.filter(b => !busyIdSet.has(String(b._id)))
+            const availableBoys = allDeliveryBoys.filter(b => !busyIdSet.has(String(b._id)))
             const candidates = availableBoys.map(b => b._id)
 
             if (candidates.length == 0) {
@@ -264,8 +309,6 @@ export const updateOrderStatus = async (req, res) => {
             deliveryBoysPayload = availableBoys.map(b => ({
                 id: b._id,
                 fullName: b.fullName,
-                longitude: b.location.coordinates?.[0],
-                latitude: b.location.coordinates?.[1],
                 mobile: b.mobile
             }))
 
@@ -393,6 +436,26 @@ export const acceptOrder = async (req, res) => {
         shopOrder.assignedDeliveryBoy = req.userId
         await order.save()
 
+        // Remove notifications for other delivery boys
+        const io = req.app.get('io')
+        if (io) {
+            // Get all delivery boys who were notified about this assignment
+            const otherDeliveryBoys = await User.find({
+                _id: { $in: assignment.brodcastedTo, $ne: req.userId },
+                role: "deliveryBoy"
+            })
+
+            // Send notification to remove the assignment from their list
+            otherDeliveryBoys.forEach(boy => {
+                const boySocketId = boy.socketId
+                if (boySocketId) {
+                    io.to(boySocketId).emit('assignmentTaken', {
+                        assignmentId: assignment._id,
+                        takenBy: req.userId
+                    })
+                }
+            })
+        }
 
         return res.status(200).json({
             message: 'order accepted'
@@ -494,12 +557,36 @@ export const sendDeliveryOtp = async (req, res) => {
         if (!order || !shopOrder) {
             return res.status(400).json({ message: "enter valid order/shopOrderid" })
         }
+        
+        // Check if order is already delivered - no OTP needed
+        if (shopOrder.status === "delivered") {
+            return res.status(400).json({ message: "Order already delivered. No OTP required." })
+        }
+        
+        // Check if valid OTP already exists (within 2 hours)
+        const now = Date.now()
+        if (shopOrder.deliveryOtp && shopOrder.otpExpires && shopOrder.otpExpires > now) {
+            // Return existing OTP instead of generating new one
+            await sendDeliveryOtpMail(order.user, shopOrder.deliveryOtp)
+            return res.status(200).json({ 
+                message: `Existing OTP resent to ${order?.user?.fullName}`,
+                otp: shopOrder.deliveryOtp,
+                isExisting: true
+            })
+        }
+        
+        // Generate new OTP only if no valid OTP exists
         const otp = Math.floor(1000 + Math.random() * 9000).toString()
         shopOrder.deliveryOtp = otp
-        shopOrder.otpExpires = Date.now() + 5 * 60 * 1000
+        shopOrder.otpExpires = Date.now() + 2 * 60 * 60 * 1000 // 2 hours expiration
+        shopOrder.lastOtpGeneratedAt = new Date()
         await order.save()
         await sendDeliveryOtpMail(order.user, otp)
-        return res.status(200).json({ message: `Otp sent Successfuly to ${order?.user?.fullName}` })
+        return res.status(200).json({ 
+            message: `New OTP sent to ${order?.user?.fullName}`,
+            otp: otp,
+            isExisting: false
+        })
     } catch (error) {
         return res.status(500).json({ message: `delivery otp error ${error}` })
     }
@@ -519,7 +606,43 @@ export const verifyDeliveryOtp = async (req, res) => {
 
         shopOrder.status = "delivered"
         shopOrder.deliveredAt = Date.now()
+        // Clear OTP fields since order is delivered
+        shopOrder.deliveryOtp = null
+        shopOrder.otpExpires = null
+        shopOrder.lastOtpGeneratedAt = null
         await order.save()
+        
+        // Populate necessary fields for socket emission
+        await order.populate("shopOrders.shop", "name owner")
+        await order.populate("shopOrders.shop.owner", "socketId")
+        await order.populate("user", "socketId")
+        
+        // Emit socket event to notify user and shop owner of status change
+        const io = req.app.get('io')
+        if (io) {
+            // Notify the user
+            const userSocketId = order.user.socketId
+            if (userSocketId) {
+                io.to(userSocketId).emit('update-status', {
+                    orderId: order._id,
+                    shopId: shopOrder.shop._id,
+                    status: shopOrder.status,
+                    userId: order.user._id
+                })
+            }
+            
+            // Notify the shop owner
+            const shopOwnerSocketId = shopOrder.shop.owner?.socketId
+            if (shopOwnerSocketId) {
+                io.to(shopOwnerSocketId).emit('update-status', {
+                    orderId: order._id,
+                    shopId: shopOrder.shop._id,
+                    status: shopOrder.status,
+                    userId: shopOrder.shop.owner._id
+                })
+            }
+        }
+        
         await DeliveryAssignment.deleteOne({
             shopOrderId: shopOrder._id,
             order: order._id,
@@ -535,49 +658,150 @@ export const verifyDeliveryOtp = async (req, res) => {
 
 export const getTodayDeliveries=async (req,res) => {
     try {
-        const deliveryBoyId=req.userId
-        const startsOfDay=new Date()
-        startsOfDay.setHours(0,0,0,0)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const tomorrow = new Date(today)
+        tomorrow.setDate(tomorrow.getDate() + 1)
 
-        const orders=await Order.find({
-           "shopOrders.assignedDeliveryBoy":deliveryBoyId,
-           "shopOrders.status":"delivered",
-           "shopOrders.deliveredAt":{$gte:startsOfDay}
-        }).lean()
-
-     let todaysDeliveries=[] 
-     
-     orders.forEach(order=>{
-        order.shopOrders.forEach(shopOrder=>{
-            if(shopOrder.assignedDeliveryBoy==deliveryBoyId &&
-                shopOrder.status=="delivered" &&
-                shopOrder.deliveredAt &&
-                shopOrder.deliveredAt>=startsOfDay
-            ){
-                todaysDeliveries.push(shopOrder)
+        const deliveries = await Order.find({
+            "shopOrders.assignedDeliveryBoy": req.userId,
+            "shopOrders.status": "delivered",
+            createdAt: {
+                $gte: today,
+                $lt: tomorrow
             }
+        }).populate("user", "fullName mobile")
+        .populate("shopOrders.shop", "name")
+
+        // Group deliveries by hour for chart data
+        const hourlyData = {}
+        for (let hour = 0; hour < 24; hour++) {
+            hourlyData[hour] = 0
+        }
+
+        deliveries.forEach(order => {
+            const hour = order.createdAt.getHours()
+            hourlyData[hour]++
         })
-     })
 
-let stats={}
+        // Convert to chart format
+        const chartData = Object.keys(hourlyData).map(hour => ({
+            hour: parseInt(hour),
+            count: hourlyData[hour]
+        }))
 
-todaysDeliveries.forEach(shopOrder=>{
-    const hour=new Date(shopOrder.deliveredAt).getHours()
-    stats[hour]=(stats[hour] || 0) + 1
-})
+        // Filter out hours with 0 deliveries for cleaner chart
+        const filteredChartData = chartData.filter(data => data.count > 0)
 
-let formattedStats=Object.keys(stats).map(hour=>({
- hour:parseInt(hour),
- count:stats[hour]   
-}))
-
-formattedStats.sort((a,b)=>a.hour-b.hour)
-
-return res.status(200).json(formattedStats)
-  
-
+        return res.status(200).json({
+            totalDeliveries: deliveries.length,
+            chartData: filteredChartData.length > 0 ? filteredChartData : [{ hour: new Date().getHours(), count: 0 }],
+            deliveries: deliveries
+        })
     } catch (error) {
-        return res.status(500).json({ message: `today deliveries error ${error}` }) 
+        return res.status(500).json({ message: `get today deliveries error ${error}` })
+    }
+}
+
+// Function to automatically regenerate OTPs every 2 hours for undelivered orders
+export const deleteOrder = async (req, res) => {
+    try {
+        const { orderId } = req.params
+        const userId = req.userId
+        
+        // Find the order
+        const order = await Order.findById(orderId)
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" })
+        }
+        
+        // Get user to check role
+        const user = await User.findById(userId)
+        if (!user) {
+            return res.status(404).json({ message: "User not found" })
+        }
+        
+        // Check permissions based on user role
+        if (user.role === "user") {
+            // Users can only delete their own orders
+            if (order.user.toString() !== userId) {
+                return res.status(403).json({ message: "You can only delete your own orders" })
+            }
+        } else if (user.role === "owner") {
+            // Owners can only delete orders for their shops
+            const hasOwnerShopOrder = order.shopOrders.some(shopOrder => 
+                shopOrder.owner.toString() === userId
+            )
+            if (!hasOwnerShopOrder) {
+                return res.status(403).json({ message: "You can only delete orders for your shops" })
+            }
+        } else if (user.role === "deliveryBoy") {
+            // Delivery boys can only delete orders assigned to them
+            const hasAssignedOrder = order.shopOrders.some(shopOrder => 
+                shopOrder.assignedDeliveryBoy && shopOrder.assignedDeliveryBoy.toString() === userId
+            )
+            if (!hasAssignedOrder) {
+                return res.status(403).json({ message: "You can only delete orders assigned to you" })
+            }
+        } else {
+            return res.status(403).json({ message: "Invalid user role" })
+        }
+        
+        // Delete related delivery assignments
+        await DeliveryAssignment.deleteMany({ order: orderId })
+        
+        // Delete the order
+        await Order.findByIdAndDelete(orderId)
+        
+        return res.status(200).json({ message: "Order deleted successfully" })
+    } catch (error) {
+        console.error("Delete order error:", error)
+        return res.status(500).json({ message: `Delete order error: ${error}` })
+    }
+}
+
+export const autoRegenerateOtps = async () => {
+    try {
+        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000)
+        const now = Date.now()
+        
+        // Find orders with shop orders that need OTP regeneration
+        const orders = await Order.find({
+            "shopOrders.status": { $in: ["out of delivery"] },
+            "shopOrders.deliveredAt": null,
+            $or: [
+                { "shopOrders.otpExpires": { $lte: now } }, // OTP has expired
+                { "shopOrders.otpExpires": null } // No OTP exists
+            ]
+        }).populate("user")
+
+        for (const order of orders) {
+            for (const shopOrder of order.shopOrders) {
+                // Only regenerate OTP if:
+                // 1. Order is "out of delivery" 
+                // 2. Order is NOT delivered
+                // 3. Current OTP has expired or doesn't exist
+                if (
+                    shopOrder.status === "out of delivery" &&
+                    !shopOrder.deliveredAt &&
+                    shopOrder.status !== "delivered" &&
+                    (!shopOrder.otpExpires || shopOrder.otpExpires <= now)
+                ) {
+                    // Generate new OTP only for undelivered orders
+                    const otp = Math.floor(1000 + Math.random() * 9000).toString()
+                    shopOrder.deliveryOtp = otp
+                    shopOrder.otpExpires = Date.now() + 2 * 60 * 60 * 1000
+                    shopOrder.lastOtpGeneratedAt = new Date()
+                    
+                    // Send OTP email
+                    await sendDeliveryOtpMail(order.user, otp)
+                    console.log(`Auto-regenerated OTP for undelivered order ${order._id}, shop order ${shopOrder._id}`)
+                }
+            }
+            await order.save()
+        }
+    } catch (error) {
+        console.error(`Auto OTP regeneration error: ${error}`)
     }
 }
 

@@ -14,5 +14,9 @@ export const store=configureStore({
                 ignoredActions: ['user/setSocket'],
                 ignoredPaths: ['user.socket'],
             },
+            immutableCheck: {
+                warnAfter: 128, // Increase warning threshold from 32ms to 128ms
+                ignoredPaths: ['user.socket'], // Ignore socket object in immutability checks
+            },
         }),
 })

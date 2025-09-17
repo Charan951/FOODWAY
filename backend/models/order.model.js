@@ -44,6 +44,10 @@ otpExpires:{
         type:Date,
         default:null
     },
+lastOtpGeneratedAt:{
+        type:Date,
+        default:null
+    },
 deliveredAt:{
     type:Date,
     default:null

@@ -142,7 +142,7 @@ setRightButton(element.scrollLeft+element.clientWidth<element.scrollWidth)
 
 <div className='w-full h-auto flex flex-wrap gap-[20px] justify-center'>
 {updatedItemsList?.map((item,index)=>(
-  <FoodCard key={index} data={item}/>
+  <FoodCard key={item._id} data={item}/>
 ))}
 </div>
 

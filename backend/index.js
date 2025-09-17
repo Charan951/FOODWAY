@@ -13,6 +13,8 @@ import orderRouter from "./routes/order.routes.js"
 import http from "http"
 import { Server } from "socket.io"
 import { socketHandler } from "./socket.js"
+import cron from "node-cron"
+import { autoRegenerateOtps } from "./controllers/order.controllers.js"
 
 const app=express()
 const server=http.createServer(app)
@@ -43,6 +45,13 @@ app.use("/api/item",itemRouter)
 app.use("/api/order",orderRouter)
 
 socketHandler(io)
+
+// Schedule OTP regeneration every 2 hours
+cron.schedule('0 */2 * * *', () => {
+    console.log('Running automatic OTP regeneration...')
+    autoRegenerateOtps()
+})
+
 server.listen(port,()=>{
     connectDb()
     console.log(`server started at ${port}`)

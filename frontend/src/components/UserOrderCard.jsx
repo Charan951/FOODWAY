@@ -2,10 +2,16 @@ import axios from 'axios'
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { serverUrl } from '../App'
+import { useDispatch } from 'react-redux'
+import { setMyOrders } from '../redux/userSlice'
+import { useSelector } from 'react-redux'
 
 function UserOrderCard({ data }) {
     const navigate = useNavigate()
+    const dispatch = useDispatch()
+    const { myOrders } = useSelector(state => state.user)
     const [selectedRating, setSelectedRating] = useState({})//itemId:rating
+    const [isDeleting, setIsDeleting] = useState(false)
 
     const formatDate = (dateString) => {
         const date = new Date(dateString)
@@ -25,6 +31,25 @@ function UserOrderCard({ data }) {
             }))
         } catch (error) {
             console.log(error)
+        }
+    }
+
+    const handleDeleteOrder = async () => {
+        if (!window.confirm('Are you sure you want to delete this order?')) {
+            return
+        }
+        
+        setIsDeleting(true)
+        try {
+            await axios.delete(`${serverUrl}/api/order/delete-order/${data._id}`, { withCredentials: true })
+            // Remove the order from the local state
+            const updatedOrders = myOrders.filter(order => order._id !== data._id)
+            dispatch(setMyOrders(updatedOrders))
+        } catch (error) {
+            console.error('Error deleting order:', error)
+            alert('Failed to delete order. Please try again.')
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -73,12 +98,43 @@ function UserOrderCard({ data }) {
                         <p className='font-semibold'>Subtotal: {shopOrder.subtotal}</p>
                         <span className='text-sm font-medium text-blue-600'>{shopOrder.status}</span>
                     </div>
+                    
+                    {/* OTP Display for Out of Delivery Status */}
+                    {shopOrder.status === "out of delivery" && shopOrder.deliveryOtp && (
+                        <div className='mt-3 p-4 bg-gradient-to-r from-orange-50 to-red-50 border-l-4 border-orange-400 rounded-lg'>
+                            <div className='flex items-center justify-between'>
+                                <div>
+                                    <h4 className='text-lg font-bold text-orange-800 mb-1'>🔐 Delivery OTP</h4>
+                                    <p className='text-sm text-orange-600 mb-2'>Share this OTP with your delivery person</p>
+                                </div>
+                                <div className='text-right'>
+                                    <div className='bg-white px-4 py-2 rounded-lg border-2 border-orange-300 shadow-sm'>
+                                        <span className='text-2xl font-bold text-orange-800 tracking-wider'>{shopOrder.deliveryOtp}</span>
+                                    </div>
+                                    {shopOrder.otpExpires && (
+                                        <p className='text-xs text-orange-500 mt-1'>
+                                            Expires: {new Date(shopOrder.otpExpires).toLocaleString()}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             ))}
 
             <div className='flex justify-between items-center border-t pt-2'>
                 <p className='font-semibold'>Total: ₹{data.totalAmount}</p>
-                <button className='bg-[#ff4d2d] hover:bg-[#e64526] text-white px-4 py-2 rounded-lg text-sm' onClick={() => navigate(`/track-order/${data._id}`)}>Track Order</button>
+                <div className='flex gap-2'>
+                    <button 
+                        className='bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50' 
+                        onClick={handleDeleteOrder}
+                        disabled={isDeleting}
+                    >
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                    </button>
+                    <button className='bg-[#ff4d2d] hover:bg-[#e64526] text-white px-4 py-2 rounded-lg text-sm' onClick={() => navigate(`/track-order/${data._id}`)}>Track Order</button>
+                </div>
             </div>
 
 

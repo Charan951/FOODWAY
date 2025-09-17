@@ -19,18 +19,27 @@ if(userData) {
         dispatch(setLocation({lat:latitude,lon:longitude}))
         
         try {
-            const result=await axios.get(`https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&format=json&apiKey=${apiKey}`)
-            console.log(result.data)
-            dispatch(setCurrentCity(result?.data?.results[0].city||result?.data?.results[0].county))
-            dispatch(setCurrentState(result?.data?.results[0].state))
-            dispatch(setCurrentAddress(result?.data?.results[0].address_line2 || result?.data?.results[0].address_line1 ))
-            dispatch(setAddress(result?.data?.results[0].address_line2))
+            // Use free OpenStreetMap Nominatim API instead of paid Geoapify
+            const result = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`)
+            
+            console.log('Geocoding result:', result.data)
+            
+            const address = result.data.address || {}
+            const city = address.city || address.town || address.village || address.county || 'Hyderabad'
+            const state = address.state || 'Telangana'
+            const fullAddress = result.data.display_name || `${city}, ${state}`
+            
+            dispatch(setCurrentCity(city))
+            dispatch(setCurrentState(state))
+            dispatch(setCurrentAddress(fullAddress))
+            dispatch(setAddress(fullAddress))
         } catch (error) {
-            console.log('Geocoding API error - using default location:', error.response?.status)
+            console.log('Geocoding API error - using default location:', error.response?.status || error.message)
             // Set default city when API fails
             dispatch(setCurrentCity('Hyderabad'))
             dispatch(setCurrentState('Telangana'))
             dispatch(setCurrentAddress('Hyderabad, Telangana'))
+            dispatch(setAddress('Hyderabad, Telangana'))
         }
     }, (error) => {
         console.log('Geolocation permission error:', error)

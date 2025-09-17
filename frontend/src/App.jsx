@@ -38,27 +38,49 @@ useUpdateLocation()
   useGetMyOrders()
 
   useEffect(()=>{
-const socketInstance=io(serverUrl,{withCredentials:true})
-dispatch(setSocket(socketInstance))
+    // Only create socket connection if user is authenticated
+    if(!userData?._id) {
+      dispatch(setSocket(null))
+      return
+    }
 
-socketInstance.on('connect',()=>{
-  console.log('Socket connected:', socketInstance.id)
-  if(userData){
-    socketInstance.emit('identity',{userId:userData._id})
-  }
-})
+    const socketInstance=io(serverUrl,{
+      withCredentials:true,
+      transports: ['websocket', 'polling'], // Fallback to polling if websocket fails
+      timeout: 20000,
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
+    })
+    
+    dispatch(setSocket(socketInstance))
 
-socketInstance.on('disconnect',()=>{
-  console.log('Socket disconnected')
-})
+    socketInstance.on('connect',()=>{
+      console.log('Socket connected:', socketInstance.id)
+      socketInstance.emit('identity',{userId:userData._id})
+    })
 
-socketInstance.on('connect_error',(error)=>{
-  console.error('Socket connection error:', error)
-})
+    socketInstance.on('disconnect',(reason)=>{
+      console.log('Socket disconnected:', reason)
+    })
 
-return ()=>{
-  socketInstance.disconnect()
-}
+    socketInstance.on('connect_error',(error)=>{
+      console.error('Socket connection error:', error)
+    })
+
+    socketInstance.on('reconnect',(attemptNumber)=>{
+      console.log('Socket reconnected after', attemptNumber, 'attempts')
+    })
+
+    socketInstance.on('reconnect_error',(error)=>{
+      console.error('Socket reconnection error:', error)
+    })
+
+    return ()=>{
+      socketInstance.removeAllListeners()
+      socketInstance.disconnect()
+      dispatch(setSocket(null))
+    }
   },[userData?._id])
 
   return (

@@ -15,7 +15,14 @@ function useGetMyshop() {
             dispatch(setMyShopData(result.data))
   
     } catch (error) {
-        console.log(error)
+        // Only log errors that are not expected (400 means no shop exists for user)
+        if (error.response && error.response.status !== 400) {
+            console.log('Error fetching shop:', error)
+        }
+        // For 400 errors, just set empty shop data
+        if (error.response && error.response.status === 400) {
+            dispatch(setMyShopData(null))
+        }
     }
 }
 fetchShop()

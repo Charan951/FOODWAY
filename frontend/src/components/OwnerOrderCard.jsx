@@ -2,13 +2,15 @@ import axios from 'axios';
 import React from 'react'
 import { MdPhone } from "react-icons/md";
 import { serverUrl } from '../App';
-import { useDispatch } from 'react-redux';
-import { updateOrderStatus } from '../redux/userSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { updateOrderStatus, setMyOrders } from '../redux/userSlice';
 import { useState } from 'react';
 import { useEffect } from 'react';
 function OwnerOrderCard({ data }) {
     const [availableBoys,setAvailableBoys]=useState([])
-const dispatch=useDispatch()
+    const [isDeleting, setIsDeleting] = useState(false)
+    const dispatch=useDispatch()
+    const { myOrders } = useSelector(state => state.user)
     const handleUpdateStatus=async (orderId,shopId,status) => {
         try {
             const result=await axios.post(`${serverUrl}/api/order/update-status/${orderId}/${shopId}`,{status},{withCredentials:true})
@@ -17,6 +19,35 @@ const dispatch=useDispatch()
              console.log(result.data)
         } catch (error) {
             console.log(error)
+        }
+    }
+
+    const handleAssignDeliveryBoy = async (orderId, deliveryBoyId) => {
+        try {
+            const result = await axios.post(`${serverUrl}/api/order/assign-delivery-boy`, { orderId, deliveryBoyId }, { withCredentials: true })
+            console.log(result)
+            dispatch(updateOrderStatus({ orderId, status: 'assigned' }))
+        } catch (error) {
+            console.log(error)
+        }
+    }
+
+    const handleDeleteOrder = async () => {
+        if (!window.confirm('Are you sure you want to delete this order?')) {
+            return
+        }
+        
+        setIsDeleting(true)
+        try {
+            await axios.delete(`${serverUrl}/api/order/delete-order/${data._id}`, { withCredentials: true })
+            // Remove the order from the local state
+            const updatedOrders = myOrders.filter(order => order._id !== data._id)
+            dispatch(setMyOrders(updatedOrders))
+        } catch (error) {
+            console.error('Error deleting order:', error)
+            alert('Failed to delete order. Please try again.')
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -33,8 +64,7 @@ const dispatch=useDispatch()
             </div>
 
             <div className='flex items-start flex-col gap-2 text-gray-600 text-sm'>
-                <p>{data?.deliveryAddress?.text}</p>
-                <p className='text-xs text-gray-500'>Lat: {data?.deliveryAddress.latitude} , Lon {data?.deliveryAddress.longitude}</p>
+                <p><span className='font-medium'>Delivery Address:</span> {data?.deliveryAddress?.text}</p>
             </div>
 
             <div className='flex space-x-4 overflow-x-auto pb-2'>
@@ -70,8 +100,15 @@ const dispatch=useDispatch()
    ):data.shopOrders.assignedDeliveryBoy?<div>{data.shopOrders.assignedDeliveryBoy.fullName}-{data.shopOrders.assignedDeliveryBoy.mobile}</div>:<div>Waiting for delivery boy to accept</div>}
 </div>}
 
-<div className='text-right font-bold text-gray-800 text-sm'>
- Total: ₹{data.shopOrders.subtotal}
+<div className='flex justify-between items-center font-bold text-gray-800 text-sm'>
+    <button 
+        className='bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs disabled:opacity-50' 
+        onClick={handleDeleteOrder}
+        disabled={isDeleting}
+    >
+        {isDeleting ? 'Deleting...' : 'Delete'}
+    </button>
+    <span>Total: ₹{data.shopOrders.subtotal}</span>
 </div>
         </div>
     )
