@@ -4,7 +4,7 @@ import genToken from "../utils/token.js"
 import { sendOtpMail } from "../utils/mail.js"
 export const signUp=async (req,res) => {
     try {
-        const {fullName,email,password,mobile,role}=req.body
+        const {fullName,email,password,mobile,role,userType}=req.body
         let user=await User.findOne({email})
         if(user){
             return res.status(400).json({message:"User Already exist."})
@@ -17,13 +17,29 @@ export const signUp=async (req,res) => {
         }
      
         const hashedPassword=await bcrypt.hash(password,10)
-        user=await User.create({
+        
+        // Create user data object
+        const userData = {
             fullName,
             email,
             role,
             mobile,
             password:hashedPassword
-        })
+        };
+        
+        // Add userType only for users
+        if(role === "user" && userType) {
+            userData.userType = userType;
+            
+            // Set delivery permission based on user type
+            const UserType = (await import("../models/userType.model.js")).default;
+            const userTypeDoc = await UserType.findOne({ name: userType });
+            if(userTypeDoc) {
+                userData.deliveryAllowed = userTypeDoc.deliveryAllowed;
+            }
+        }
+        
+        user=await User.create(userData)
 
     const token=await genToken(user)
         res.cookie("token",token,{
@@ -46,6 +62,11 @@ export const signIn=async (req,res) => {
         const user=await User.findOne({email})
         if(!user){
             return res.status(400).json({message:"User does not exist."})
+        }
+        
+        // Check if owner is approved
+        if(user.role === "owner" && !user.isApproved){
+            return res.status(403).json({message:"Your account is pending approval from admin."})
         }
         
      const isMatch=await bcrypt.compare(password,user.password)
@@ -132,26 +153,51 @@ export const resetPassword=async (req,res) => {
 
 export const googleAuth=async (req,res) => {
     try {
-        const {fullName,email,mobile,role}=req.body
+        const {fullName,email,role,mobile,userType}=req.body
         let user=await User.findOne({email})
-        if(!user){
-            user=await User.create({
-                fullName,email,mobile,role
+        if(user){
+            const token=await genToken(user)
+            res.cookie("token",token,{
+                secure:false,
+                sameSite:"strict",
+                maxAge:7*24*60*60*1000,
+                httpOnly:true
             })
+            return res.status(200).json(user)
         }
+        
+        // Create user data object
+        const userData = {
+            fullName,
+            email,
+            role,
+            mobile
+        };
+        
+        // Add userType only for users
+        if(role === "user" && userType) {
+            userData.userType = userType;
+            
+            // Set delivery permission based on user type
+            const UserType = (await import("../models/userType.model.js")).default;
+            const userTypeDoc = await UserType.findOne({ name: userType });
+            if(userTypeDoc) {
+                userData.deliveryAllowed = userTypeDoc.deliveryAllowed;
+            }
+        }
+        
+        user=await User.create(userData)
 
-    const token=await genToken(user)
+        const token=await genToken(user)
         res.cookie("token",token,{
             secure:false,
             sameSite:"strict",
             maxAge:7*24*60*60*1000,
             httpOnly:true
         })
-  
-        return res.status(200).json(user)
-
+        return res.status(201).json(user)
 
     } catch (error) {
-         return res.status(500).json(`googleAuth error ${error}`)
+        return res.status(500).json(`google auth error ${error}`)
     }
 }

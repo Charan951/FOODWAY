@@ -294,9 +294,28 @@ const userSlice = createSlice({
 
     clearPersistedOtpData: (state) => {
       clearOtpDataFromLocalStorage();
+    },
+
+    logout: (state) => {
+      state.userData = null;
+      state.currentCity = null;
+      state.currentState = null;
+      state.currentAddress = null;
+      state.shopInMyCity = null;
+      state.itemsInMyCity = null;
+      state.cartItems = [];
+      state.totalAmount = 0;
+      state.myOrders = [];
+      state.searchItems = null;
+      state.socket = null;
+      
+      // Clear localStorage
+      localStorage.removeItem('cartItems');
+      localStorage.removeItem('totalAmount');
+      clearOtpDataFromLocalStorage();
     }
   }
 })
 
-export const { setUserData, setCurrentAddress, setCurrentCity, setCurrentState, setShopsInMyCity, setItemsInMyCity, addToCart, updateQuantity, removeCartItem, clearCart, setMyOrders, addMyOrder, updateOrderStatus, setSearchItems, setTotalAmount, setSocket, updateRealtimeOrderStatus, saveOtpData, clearPersistedOtpData } = userSlice.actions
+export const { setUserData, setCurrentAddress, setCurrentCity, setCurrentState, setShopsInMyCity, setItemsInMyCity, addToCart, updateQuantity, removeCartItem, clearCart, setMyOrders, addMyOrder, updateOrderStatus, setSearchItems, setTotalAmount, setSocket, updateRealtimeOrderStatus, saveOtpData, clearPersistedOtpData, logout } = userSlice.actions
 export default userSlice.reducer

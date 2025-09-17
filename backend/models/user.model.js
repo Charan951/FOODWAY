@@ -20,8 +20,25 @@ const userSchema = new mongoose.Schema({
     },
     role:{
         type:String,
-        enum:["user","owner","deliveryBoy"],
+        enum:["user","owner","deliveryBoy","superadmin"],
         required:true
+    },
+    userType:{
+        type:String,
+        default:"student",
+        required:function(){
+            return this.role === "user"; // Only users need userType
+        }
+    },
+    deliveryAllowed:{
+        type:Boolean,
+        default:true // Allow delivery for all users by default
+    },
+    isApproved:{
+        type:Boolean,
+        default:function(){
+            return this.role !== "owner"; // Only owners need approval, others are auto-approved
+        }
     },
     resetOtp:{
         type:String

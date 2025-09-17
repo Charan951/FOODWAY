@@ -1,0 +1,207 @@
+import User from "../models/user.model.js";
+import Category from "../models/category.model.js";
+import UserType from "../models/userType.model.js";
+
+// Get all pending owners for approval
+export const getPendingOwners = async (req, res) => {
+    try {
+        const pendingOwners = await User.find({ 
+            role: "owner", 
+            isApproved: false 
+        }).select("-password -resetOtp");
+        
+        res.status(200).json(pendingOwners);
+    } catch (error) {
+        res.status(500).json({ message: `Error fetching pending owners: ${error}` });
+    }
+};
+
+// Approve or reject owner
+export const updateOwnerStatus = async (req, res) => {
+    try {
+        const { userId, action } = req.body; // action: 'approve' or 'reject'
+        
+        if (action === 'approve') {
+            await User.findByIdAndUpdate(userId, { isApproved: true });
+            res.status(200).json({ message: "Owner approved successfully" });
+        } else if (action === 'reject') {
+            await User.findByIdAndDelete(userId);
+            res.status(200).json({ message: "Owner rejected and removed" });
+        } else {
+            res.status(400).json({ message: "Invalid action" });
+        }
+    } catch (error) {
+        res.status(500).json({ message: `Error updating owner status: ${error}` });
+    }
+};
+
+// Get all categories
+export const getCategories = async (req, res) => {
+    try {
+        const categories = await Category.find({ isActive: true });
+        res.status(200).json(categories);
+    } catch (error) {
+        res.status(500).json({ message: `Error fetching categories: ${error}` });
+    }
+};
+
+// Create new category
+export const createCategory = async (req, res) => {
+    try {
+        const { name, description } = req.body;
+        
+        const existingCategory = await Category.findOne({ name });
+        if (existingCategory) {
+            return res.status(400).json({ message: "Category already exists" });
+        }
+        
+        const category = await Category.create({ name, description });
+        res.status(201).json(category);
+    } catch (error) {
+        res.status(500).json({ message: `Error creating category: ${error}` });
+    }
+};
+
+// Delete category
+export const deleteCategory = async (req, res) => {
+    try {
+        const { categoryId } = req.params;
+        
+        await Category.findByIdAndUpdate(categoryId, { isActive: false });
+        res.status(200).json({ message: "Category deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ message: `Error deleting category: ${error}` });
+    }
+};
+
+// Get users by role with search and count
+export const getUsersByRole = async (req, res) => {
+    try {
+        const { role, search } = req.query;
+        
+        let query = {};
+        if (role && role !== 'all') {
+            query.role = role;
+        }
+        
+        if (search) {
+            query.$or = [
+                { fullName: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } },
+                { mobile: { $regex: search, $options: 'i' } }
+            ];
+        }
+        
+        const users = await User.find(query).select("-password -resetOtp");
+        
+        res.status(200).json(users);
+    } catch (error) {
+        res.status(500).json({ message: `Error fetching users: ${error}` });
+    }
+};
+
+// Get dashboard stats
+export const getDashboardStats = async (req, res) => {
+    try {
+        const userCount = await User.countDocuments({ role: "user" });
+        const ownerCount = await User.countDocuments({ role: "owner", isApproved: true });
+        const deliveryBoyCount = await User.countDocuments({ role: "deliveryBoy" });
+        const pendingOwnerCount = await User.countDocuments({ role: "owner", isApproved: false });
+        const categoryCount = await Category.countDocuments({ isActive: true });
+        
+        res.status(200).json({
+            userCount,
+            ownerCount,
+            deliveryBoyCount,
+            pendingOwnerCount,
+            categoryCount
+        });
+    } catch (error) {
+        res.status(500).json({ message: `Error fetching dashboard stats: ${error}` });
+    }
+};
+
+// Get all user types
+export const getUserTypes = async (req, res) => {
+    try {
+        const userTypes = await UserType.find({ isActive: true });
+        res.status(200).json(userTypes);
+    } catch (error) {
+        res.status(500).json({ message: `Error fetching user types: ${error}` });
+    }
+};
+
+// Create new user type
+export const createUserType = async (req, res) => {
+    try {
+        const { name, description, deliveryAllowed } = req.body;
+        
+        const existingUserType = await UserType.findOne({ name });
+        if (existingUserType) {
+            return res.status(400).json({ message: "User type already exists" });
+        }
+        
+        const userType = await UserType.create({ name, description, deliveryAllowed });
+        res.status(201).json(userType);
+    } catch (error) {
+        res.status(500).json({ message: `Error creating user type: ${error}` });
+    }
+};
+
+// Update user type delivery permission
+export const updateUserTypeDelivery = async (req, res) => {
+    try {
+        const { userTypeId } = req.params;
+        const { deliveryAllowed } = req.body;
+        
+        const userType = await UserType.findByIdAndUpdate(
+            userTypeId, 
+            { deliveryAllowed }, 
+            { new: true }
+        );
+        
+        if (!userType) {
+            return res.status(404).json({ message: "User type not found" });
+        }
+        
+        // Update all users of this type
+        await User.updateMany(
+            { userType: userType.name },
+            { deliveryAllowed }
+        );
+        
+        res.status(200).json({ message: "User type delivery permission updated successfully", userType });
+    } catch (error) {
+        res.status(500).json({ message: `Error updating user type: ${error}` });
+    }
+};
+
+// Delete user type
+export const deleteUserType = async (req, res) => {
+    try {
+        const { userTypeId } = req.params;
+        
+        await UserType.findByIdAndUpdate(userTypeId, { isActive: false });
+        res.status(200).json({ message: "User type deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ message: `Error deleting user type: ${error}` });
+    }
+};
+
+// Clear all sample data
+export const clearSampleData = async (req, res) => {
+    try {
+        // Delete all users except superadmin
+        await User.deleteMany({ role: { $ne: "superadmin" } });
+        
+        // Clear categories except essential ones
+        await Category.deleteMany({});
+        
+        // Clear user types
+        await UserType.deleteMany({});
+        
+        res.status(200).json({ message: "Sample data cleared successfully" });
+    } catch (error) {
+        res.status(500).json({ message: `Error clearing sample data: ${error}` });
+    }
+};

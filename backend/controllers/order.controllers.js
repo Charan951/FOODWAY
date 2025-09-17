@@ -23,6 +23,15 @@ export const placeOrder = async (req, res) => {
             return res.status(400).json({ message: "delivery address is required" })
         }
 
+        // Check if user has delivery permission
+        const user = await User.findById(req.userId)
+        
+        // For existing users without deliveryAllowed field, allow delivery by default
+        // For new users with user types, check their specific permission
+        if (user.deliveryAllowed === false) {
+            return res.status(403).json({ message: "Delivery not allowed for your user type. Please contact admin." })
+        }
+
         const groupItemsByShop = {}
 
         cartItems.forEach(item => {
@@ -36,7 +45,7 @@ export const placeOrder = async (req, res) => {
         const shopOrders = await Promise.all(Object.keys(groupItemsByShop).map(async (shopId) => {
             const shop = await Shop.findById(shopId).populate("owner")
             if (!shop) {
-                return res.status(400).json({ message: "shop not found" })
+                throw new Error(`Shop with ID ${shopId} not found`)
             }
             const items = groupItemsByShop[shopId]
             const subtotal = items.reduce((sum, i) => sum + Number(i.price) * Number(i.quantity), 0)

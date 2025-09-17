@@ -21,6 +21,7 @@ import useGetMyOrders from './hooks/useGetMyOrders'
 import useUpdateLocation from './hooks/useUpdateLocation'
 import TrackOrderPage from './pages/TrackOrderPage'
 import Shop from './pages/Shop'
+import SuperAdminDashboard from './components/SuperAdminDashboard'
 import { useEffect } from 'react'
 import { io } from 'socket.io-client'
 import { setSocket } from './redux/userSlice'
@@ -98,6 +99,7 @@ useUpdateLocation()
 <Route path='/my-orders' element={userData?<MyOrders/>:<Navigate to={"/signin"}/>}/>
 <Route path='/track-order/:orderId' element={userData?<TrackOrderPage/>:<Navigate to={"/signin"}/>}/>
 <Route path='/shop/:shopId' element={userData?<Shop/>:<Navigate to={"/signin"}/>}/>
+<Route path='/superadmin' element={userData?.role === 'superadmin' ? <SuperAdminDashboard/> : <Navigate to={"/signin"}/>}/>
    </Routes>
   )
 }

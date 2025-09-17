@@ -1,5 +1,5 @@
 import React from 'react'
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FaRegEye } from "react-icons/fa";
 import { FaRegEyeSlash } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
@@ -18,6 +18,8 @@ function SignUp() {
     const borderColor = "#ddd";
     const [showPassword, setShowPassword] = useState(false)
     const [role, setRole] = useState("user")
+    const [userType, setUserType] = useState("")
+    const [userTypes, setUserTypes] = useState([])
     const navigate=useNavigate()
     const [fullName,setFullName]=useState("")
     const [email,setEmail]=useState("")
@@ -26,11 +28,28 @@ function SignUp() {
     const [err,setErr]=useState("")
     const [loading,setLoading]=useState(false)
     const dispatch=useDispatch()
+
+    // Fetch user types when component mounts
+    useEffect(() => {
+        const fetchUserTypes = async () => {
+            try {
+                const response = await axios.get(`${serverUrl}/api/superadmin/user-types`);
+                setUserTypes(response.data);
+                if (response.data.length > 0) {
+                    setUserType(response.data[0].name); // Set first user type as default
+                }
+            } catch (error) {
+                console.error('Error fetching user types:', error);
+            }
+        };
+        fetchUserTypes();
+    }, []);
+
      const handleSignUp=async () => {
         setLoading(true)
         try {
             const result=await axios.post(`${serverUrl}/api/auth/signup`,{
-                fullName,email,password,mobile,role
+                fullName,email,password,mobile,role,userType: role === "user" ? userType : undefined
             },{withCredentials:true})
             dispatch(setUserData(result.data))
             setErr("")
@@ -54,7 +73,8 @@ function SignUp() {
                 fullName:result.user.displayName,
                 email:result.user.email,
                 role,
-                mobile
+                mobile,
+                userType: role === "user" ? userType : undefined
             },{withCredentials:true})
             dispatch(setUserData(data))
             setErr("")
@@ -110,6 +130,8 @@ function SignUp() {
                     <div className='flex gap-2'>
                         {["user", "owner", "deliveryBoy"].map((r) => (
                             <button
+                                key={r}
+                                type="button"
                                 className='flex-1 border rounded-lg px-3 py-2 text-center font-medium transition-colors cursor-pointer'
                                 onClick={()=>setRole(r)}
                                 style={
@@ -122,6 +144,27 @@ function SignUp() {
                         ))}
                     </div>
                 </div>
+
+                {/* User Type Selection - Only show for users */}
+                {role === "user" && (
+                    <div className='mb-4'>
+                        <label htmlFor="userType" className='block text-gray-700 font-medium mb-1'>User Type</label>
+                        <select 
+                            value={userType} 
+                            onChange={(e) => setUserType(e.target.value)}
+                            className='w-full border rounded-lg px-3 py-2 focus:outline-none'
+                            style={{ border: `1px solid ${borderColor}` }}
+                            required={role === "user"}
+                        >
+                            <option value="">Select User Type</option>
+                            {userTypes.map((type) => (
+                                <option key={type._id} value={type.name}>
+                                    {type.name} {type.deliveryAllowed ? "(Delivery Available)" : "(Pickup Only)"}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
 
             <button className={`w-full font-semibold py-2 rounded-lg transition duration-200 bg-[#ff4d2d] text-white hover:bg-[#e64323] cursor-pointer`} onClick={handleSignUp} disabled={loading}>
                 {loading?<ClipLoader size={20} color='white'/>:"Sign Up"}
