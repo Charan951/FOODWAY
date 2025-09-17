@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import UserOrderCard from '../components/UserOrderCard';
 import OwnerOrderCard from '../components/OwnerOrderCard';
 import DeliveryBoyOrderCard from '../components/DeliveryBoyOrderCard';
+import ErrorBoundary from '../components/ErrorBoundary';
 import useGetMyOrders from '../hooks/useGetMyOrders';
 import { setMyOrders, updateOrderStatus, updateRealtimeOrderStatus } from '../redux/userSlice';
 
@@ -47,7 +48,7 @@ return ()=>{
 
   
   return (
-    <div className='"w-full min-h-screen bg-[#fff9f6] flex justify-center px-4'>
+    <div className='w-full min-h-screen bg-[#fff9f6] flex justify-center px-4'>
       <div className='w-full max-w-[800px] p-4'>
 
         <div className='flex items-center gap-[20px] mb-6 '>
@@ -59,20 +60,23 @@ return ()=>{
         <div className='space-y-6'>
           {myOrders && myOrders.length > 0 ? (
             myOrders.map((order,index)=>(
-              userData.role=="user" ?
-              (
-                <UserOrderCard data={order} key={index}/>
-              )
-              :
-              userData.role=="owner"? (
-                <OwnerOrderCard data={order} key={index}/>
-              )
-              :
-              userData.role=="deliveryBoy"? (
-                <DeliveryBoyOrderCard data={order} key={index}/>
-              )
-              :
-              null
+              <ErrorBoundary key={`error-boundary-${index}`}>
+                {userData.role=="user" ?
+                  (
+                    <UserOrderCard data={order} key={index}/>
+                  )
+                  :
+                  userData.role=="owner"? (
+                    <OwnerOrderCard data={order} key={index}/>
+                  )
+                  :
+                  userData.role=="deliveryBoy"? (
+                    <DeliveryBoyOrderCard data={order} key={index}/>
+                  )
+                  :
+                  null
+                }
+              </ErrorBoundary>
             ))
           ) : (
             <div className='bg-white rounded-lg shadow-md p-8 text-center'>

@@ -3,7 +3,7 @@ import { IoIosArrowRoundBack } from "react-icons/io";
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { FaUtensils } from "react-icons/fa";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRef } from 'react';
 import axios from 'axios';
 import { serverUrl } from '../App';
@@ -19,6 +19,7 @@ function AddItem() {
     const [backendImage, setBackendImage] = useState(null)
     const [category, setCategory] = useState("")
     const [foodType, setFoodType] = useState("veg")
+    const [dynamicCategories, setDynamicCategories] = useState([])
     const categories = ["Snacks",
         "Main Course",
         "Desserts",
@@ -31,6 +32,31 @@ function AddItem() {
         "Fast Food",
         "Others"]
     const dispatch = useDispatch()
+
+    // Fetch categories from API
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const response = await axios.get(`${serverUrl}/api/categories`, {
+                    withCredentials: true
+                });
+                setDynamicCategories(response.data);
+                // Set first category as default if available
+                if (response.data.length > 0 && !category) {
+                    setCategory(response.data[0].name);
+                }
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+                // Fallback to static categories if API fails
+                setDynamicCategories(categories.map(cat => ({ name: cat, _id: cat.toLowerCase() })));
+                if (!category) {
+                    setCategory(categories[0]);
+                }
+            }
+        };
+        fetchCategories();
+    }, []);
+
     const handleImage = (e) => {
         const file = e.target.files[0]
         setBackendImage(file)
@@ -104,8 +130,8 @@ function AddItem() {
 
                         >
                             <option value="">select Category</option>
-                            {categories.map((cate, index) => (
-                                <option value={cate} key={index}>{cate}</option>
+                            {(dynamicCategories.length > 0 ? dynamicCategories : categories.map(cat => ({ name: cat, _id: cat.toLowerCase() }))).map((cate, index) => (
+                                <option value={cate.name} key={cate._id || index}>{cate.name}</option>
                             ))}
 
                         </select>

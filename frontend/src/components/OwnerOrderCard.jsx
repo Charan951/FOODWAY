@@ -11,6 +11,14 @@ function OwnerOrderCard({ data }) {
     const [isDeleting, setIsDeleting] = useState(false)
     const dispatch=useDispatch()
     const { myOrders } = useSelector(state => state.user)
+    
+    // Debug logging
+    useEffect(() => {
+        console.log('OwnerOrderCard - Received data:', data)
+        console.log('OwnerOrderCard - shopOrders:', data?.shopOrders)
+        console.log('OwnerOrderCard - shopOrderItems:', data?.shopOrders?.shopOrderItems)
+    }, [data])
+    
     const handleUpdateStatus=async (orderId,shopId,status) => {
         try {
             const result=await axios.post(`${serverUrl}/api/order/update-status/${orderId}/${shopId}`,{status},{withCredentials:true})
@@ -56,60 +64,80 @@ function OwnerOrderCard({ data }) {
     return (
         <div className='bg-white rounded-lg shadow p-4 space-y-4'>
             <div>
-                <h2 className='text-lg font-semibold text-gray-800'>{data.user.fullName}</h2>
-                <p className='text-sm text-gray-500'>{data.user.email}</p>
-                <p className='flex items-center gap-2 text-sm text-gray-600 mt-1'><MdPhone /><span>{data.user.mobile}</span></p>
-                {data.paymentMethod=="online"?<p className='gap-2 text-sm text-gray-600'>payment: {data.payment?"true":"false"}</p>:<p className='gap-2 text-sm text-gray-600'>Payment Method: {data.paymentMethod}</p>}
-                
+                <h2 className='text-lg font-semibold text-gray-800'>{data?.user?.fullName || 'Unknown Customer'}</h2>
+                <p className='text-sm text-gray-500'>{data?.user?.email || 'No email'}</p>
+                <p className='flex items-center gap-2 text-sm text-gray-600 mt-1'><MdPhone /><span>{data?.user?.mobile || 'No phone'}</span></p>
+                {data?.paymentMethod === "online" ? 
+                    <p className='gap-2 text-sm text-gray-600'>payment: {data?.payment ? "true" : "false"}</p> : 
+                    <p className='gap-2 text-sm text-gray-600'>Payment Method: {data?.paymentMethod || 'Unknown'}</p>
+                }
             </div>
 
             <div className='flex items-start flex-col gap-2 text-gray-600 text-sm'>
-                <p><span className='font-medium'>Delivery Address:</span> {data?.deliveryAddress?.text}</p>
+                <p><span className='font-medium'>Delivery Address:</span> {data?.deliveryAddress?.text || 'No address provided'}</p>
             </div>
 
             <div className='flex space-x-4 overflow-x-auto pb-2'>
-                {data.shopOrders.shopOrderItems.map((item, index) => (
-                    <div key={index} className='flex-shrink-0 w-40 border rounded-lg p-2 bg-white"'>
-                        <img src={item.item.image} alt="" className='w-full h-24 object-cover rounded' />
-                        <p className='text-sm font-semibold mt-1'>{item.name}</p>
-                        <p className='text-xs text-gray-500'>Qty: {item.quantity} x ₹{item.price}</p>
-                    </div>
-                ))}
+                {data?.shopOrders?.shopOrderItems && Array.isArray(data.shopOrders.shopOrderItems) && data.shopOrders.shopOrderItems.length > 0 ? (
+                    data.shopOrders.shopOrderItems.map((item, index) => (
+                        <div key={index} className='flex-shrink-0 w-40 border rounded-lg p-2 bg-white'>
+                            <img src={item.item?.image || '/placeholder-food.jpg'} alt={item.name || 'Food item'} className='w-full h-24 object-cover rounded' />
+                            <p className='text-sm font-semibold mt-1'>{item.name || item.item?.name || 'Unknown Item'}</p>
+                            <p className='text-xs text-gray-500'>Qty: {item.quantity || 0} x ₹{item.price || item.item?.price || 0}</p>
+                        </div>
+                    ))
+                ) : (
+                    <div className='text-gray-500'>No items found</div>
+                )}
             </div>
 
-<div className='flex justify-between items-center mt-auto pt-3 border-t border-gray-100'>
-<span className='text-sm'>status: <span className='font-semibold capitalize text-[#ff4d2d]'>{data.shopOrders.status}</span>
-</span>
+            <div className='flex justify-between items-center mt-auto pt-3 border-t border-gray-100'>
+                <span className='text-sm'>Status: <span className='font-semibold capitalize text-[#ff4d2d]'>{data?.shopOrders?.status || 'Unknown'}</span></span>
+                <select className='rounded-md border px-3 py-1 text-sm focus:outline-none focus:ring-2 border-[#ff4d2d] text-[#ff4d2d]' onChange={(e)=>handleUpdateStatus(data._id,data?.shopOrders?.shop?._id,e.target.value)}>
+                    <option value="">Change Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="preparing">Preparing</option>
+                    <option value="out of delivery">Out Of Delivery</option>
+                </select>
+            </div>
 
-<select  className='rounded-md border px-3 py-1 text-sm focus:outline-none focus:ring-2 border-[#ff4d2d] text-[#ff4d2d]' onChange={(e)=>handleUpdateStatus(data._id,data.shopOrders.shop._id,e.target.value)}>
-    <option value="">Change</option>
-<option value="pending">Pending</option>
-<option value="preparing">Preparing</option>
-<option value="out of delivery">Out Of Delivery</option>
-</select>
+            {data?.shopOrders?.status === "out of delivery" && 
+                <div className="mt-3 p-3 border rounded-lg text-sm bg-orange-50">
+                    <div className='mb-2'>
+                        {data?.shopOrders?.assignedDeliveryBoy ? (
+                            <p className='font-medium text-orange-800'>Assigned Delivery Boy:</p>
+                        ) : (
+                            <p className='font-medium text-orange-800'>Available Delivery Boys:</p>
+                        )}
+                    </div>
+                    <div className='space-y-1'>
+                        {availableBoys && Array.isArray(availableBoys) && availableBoys.length > 0 ? (
+                            availableBoys.map((b, index) => (
+                                <div key={index} className='text-gray-800 bg-white p-2 rounded border'>
+                                    <span className='font-medium'>{b.fullName || 'Unknown'}</span> - <span className='text-gray-600'>{b.mobile || 'No phone'}</span>
+                                </div>
+                            ))
+                        ) : data?.shopOrders?.assignedDeliveryBoy ? (
+                            <div className='text-gray-800 bg-white p-2 rounded border'>
+                                <span className='font-medium'>{data.shopOrders.assignedDeliveryBoy.fullName || 'Unknown'}</span> - <span className='text-gray-600'>{data.shopOrders.assignedDeliveryBoy.mobile || 'No phone'}</span>
+                            </div>
+                        ) : (
+                            <div className='text-orange-600 italic'>Waiting for delivery boy to accept</div>
+                        )}
+                    </div>
+                </div>
+            }
 
-</div>
-
-{data.shopOrders.status=="out of delivery" && 
-<div className="mt-3 p-2 border rounded-lg text-sm bg-orange-50 gap-4">
-    {data.shopOrders.assignedDeliveryBoy?<p>Assigned Delivery Boy:</p>:<p>Available Delivery Boys:</p>}
-   {availableBoys?.length>0?(
-     availableBoys.map((b,index)=>(
-        <div className='text-gray-800'>{b.fullName}-{b.mobile}</div>
-     ))
-   ):data.shopOrders.assignedDeliveryBoy?<div>{data.shopOrders.assignedDeliveryBoy.fullName}-{data.shopOrders.assignedDeliveryBoy.mobile}</div>:<div>Waiting for delivery boy to accept</div>}
-</div>}
-
-<div className='flex justify-between items-center font-bold text-gray-800 text-sm'>
-    <button 
-        className='bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs disabled:opacity-50' 
-        onClick={handleDeleteOrder}
-        disabled={isDeleting}
-    >
-        {isDeleting ? 'Deleting...' : 'Delete'}
-    </button>
-    <span>Total: ₹{data.shopOrders.subtotal}</span>
-</div>
+            <div className='flex justify-between items-center font-bold text-gray-800 text-sm mt-4 pt-3 border-t border-gray-100'>
+                <button 
+                    className='bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-xs disabled:opacity-50 transition-colors duration-200' 
+                    onClick={handleDeleteOrder}
+                    disabled={isDeleting}
+                >
+                    {isDeleting ? 'Deleting...' : 'Delete Order'}
+                </button>
+                <span className='text-lg font-bold text-[#ff4d2d]'>Total: ₹{data?.shopOrders?.subtotal || 0}</span>
+            </div>
         </div>
     )
 }

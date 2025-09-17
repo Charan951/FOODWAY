@@ -190,10 +190,14 @@ export const verifyPayment = async (req, res) => {
 
 export const getMyOrders = async (req, res) => {
     try {
+        console.log('getMyOrders called for user:', req.userId)
         const user = await User.findById(req.userId)
         if (!user) {
+            console.log('User not found:', req.userId)
             return res.status(404).json({ message: "User not found" })
         }
+        
+        console.log('User found:', user.role, user.email)
         
         if (user.role == "user") {
             const orders = await Order.find({ user: req.userId })
@@ -204,16 +208,25 @@ export const getMyOrders = async (req, res) => {
 
             return res.status(200).json(orders)
         } else if (user.role == "owner") {
+            console.log('Fetching orders for owner:', req.userId)
             const orders = await Order.find({ "shopOrders.owner": req.userId })
                 .sort({ createdAt: -1 })
                 .populate("shopOrders.shop", "name")
+                .populate("shopOrders.owner", "fullName email mobile")
                 .populate("user", "fullName email mobile")
                 .populate("shopOrders.shopOrderItems.item", "name image price")
                 .populate("shopOrders.assignedDeliveryBoy", "fullName mobile")
 
+            console.log('Raw orders found for owner:', orders.length)
+
             const filteredOrders = orders.map((order => {
                 const ownerShopOrder = order.shopOrders.find(o => o.owner && o.owner._id.toString() === req.userId.toString())
-                if (!ownerShopOrder) return null
+                if (!ownerShopOrder) {
+                    console.log('No matching shop order found for order:', order._id)
+                    return null
+                }
+                
+                console.log('Found matching shop order for order:', order._id, 'subtotal:', ownerShopOrder.subtotal)
                 
                 return {
                     _id: order._id,
@@ -226,6 +239,7 @@ export const getMyOrders = async (req, res) => {
                 }
             })).filter(order => order !== null)
 
+            console.log('Filtered orders for owner:', filteredOrders.length)
             return res.status(200).json(filteredOrders)
         } else if (user.role == "deliveryBoy") {
             const orders = await Order.find({ "shopOrders.assignedDeliveryBoy": req.userId })

@@ -9,10 +9,19 @@ function useGetMyOrders() {
     const dispatch=useDispatch()
     const {userData}=useSelector(state=>state.user)
   useEffect(()=>{
+    if (!userData) {
+      console.log('useGetMyOrders: No userData available, skipping fetch')
+      return
+    }
+    
+    console.log('useGetMyOrders: Starting fetch for user:', userData.role, userData._id)
+    
   const fetchOrders=async () => {
     try {
            const result=await axios.get(`${serverUrl}/api/order/my-orders`,{withCredentials:true})
             console.log('Orders fetched successfully:', result.data)
+            console.log('User role:', userData?.role)
+            console.log('Orders data structure:', JSON.stringify(result.data, null, 2))
             dispatch(setMyOrders(result.data))
    
 

@@ -20,6 +20,26 @@ function UserDashboard() {
    const [showLeftShopButton,setShowLeftShopButton]=useState(false)
   const [showRightShopButton,setShowRightShopButton]=useState(false)
   const [updatedItemsList,setUpdatedItemsList]=useState([])
+  const [dynamicCategories, setDynamicCategories] = useState([])
+
+// Fetch categories from API
+useEffect(() => {
+  const fetchCategories = async () => {
+    try {
+      const response = await axios.get(`${serverUrl}/api/categories`, {
+        withCredentials: true
+      });
+      // Add "All" category at the beginning and merge with API categories
+      const allCategory = { name: "All", _id: "all" };
+      setDynamicCategories([allCategory, ...response.data]);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      // Fallback to static categories if API fails
+      setDynamicCategories(categories.map(cat => ({ name: cat.category, _id: cat.category.toLowerCase() })));
+    }
+  };
+  fetchCategories();
+}, []);
 
 const handleFilterByCategory=(category)=>{
 if(category=="All"){
@@ -76,7 +96,7 @@ setRightButton(element.scrollLeft+element.clientWidth<element.scrollWidth)
         updateButton(shopScrollRef,setShowLeftShopButton,setShowRightShopButton)
       })}
 
-  },[categories])
+  },[dynamicCategories])
 
 
   return (
@@ -105,8 +125,8 @@ setRightButton(element.scrollLeft+element.clientWidth<element.scrollWidth)
          
 
           <div className='w-full flex overflow-x-auto gap-4 pb-2 ' ref={cateScrollRef}>
-            {categories.map((cate, index) => (
-              <CategoryCard name={cate.category} image={cate.image} key={index} onClick={()=>handleFilterByCategory(cate.category)}/>
+            {dynamicCategories.map((cate, index) => (
+              <CategoryCard name={cate.name} image={categories.find(c => c.category === cate.name)?.image || categories[0].image} key={index} onClick={()=>handleFilterByCategory(cate.name)}/>
             ))}
           </div>
           {showRightCateButton &&  <button className='absolute right-0 top-1/2 -translate-y-1/2 bg-[#ff4d2d] text-white p-2 rounded-full shadow-lg hover:bg-[#e64528] z-10' onClick={()=>scrollHandler(cateScrollRef,"right")}>
