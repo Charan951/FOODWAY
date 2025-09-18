@@ -1,18 +1,31 @@
 import Item from "../models/item.model.js";
 import Shop from "../models/shop.model.js";
-import uploadOnCloudinary from "../utils/cloudinary.js";
+import uploadToCloudinary from "../utils/s3Upload.js";
 
 export const addItem = async (req, res) => {
     try {
         const { name, category, foodType, price } = req.body
+        
+        // Validate required fields
+        if (!name || !category || !foodType || !price) {
+            return res.status(400).json({ message: "All fields (name, category, foodType, price) are required" })
+        }
+
         let image;
         if (req.file) {
-            image = await uploadOnCloudinary(req.file.path)
+            try {
+                image = await uploadToCloudinary(req.file)
+            } catch (uploadError) {
+                console.error('Image upload error:', uploadError)
+                return res.status(400).json({ message: "Failed to upload image. Please try again." })
+            }
         }
+        
         const shop = await Shop.findOne({ owner: req.userId })
         if (!shop) {
-            return res.status(400).json({ message: "shop not found" })
+            return res.status(400).json({ message: "Shop not found. Please create a shop first." })
         }
+        
         const item = await Item.create({
             name, category, foodType, price, image, shop: shop._id
         })
@@ -27,7 +40,26 @@ export const addItem = async (req, res) => {
         return res.status(201).json(shop)
 
     } catch (error) {
-        return res.status(500).json({ message: `add item error ${error}` })
+        console.error('Add item error:', error)
+        
+        // Handle specific MongoDB errors
+        if (error.code === 11000) {
+            const field = Object.keys(error.keyValue)[0]
+            return res.status(400).json({ message: `An item with this ${field} already exists` })
+        }
+        
+        // Handle validation errors
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(err => err.message)
+            return res.status(400).json({ message: messages.join(', ') })
+        }
+        
+        // Handle cast errors (invalid ObjectId, etc.)
+        if (error.name === 'CastError') {
+            return res.status(400).json({ message: "Invalid data format provided" })
+        }
+        
+        return res.status(500).json({ message: "Internal server error. Please try again later." })
     }
 }
 
@@ -37,7 +69,7 @@ export const editItem = async (req, res) => {
         const { name, category, foodType, price } = req.body
         let image;
         if (req.file) {
-            image = await uploadOnCloudinary(req.file.path)
+            image = await uploadToCloudinary(req.file)
         }
         const item = await Item.findByIdAndUpdate(itemId, {
             name, category, foodType, price, image

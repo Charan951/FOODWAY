@@ -1,5 +1,5 @@
 import Shop from "../models/shop.model.js";
-import uploadOnCloudinary from "../utils/cloudinary.js";
+import uploadToCloudinary from "../utils/s3Upload.js";
 
 export const createEditShop=async (req,res) => {
     try {
@@ -7,7 +7,7 @@ export const createEditShop=async (req,res) => {
        let image;
        if(req.file){
         console.log(req.file)
-        image=await uploadOnCloudinary(req.file.path)
+        image=await uploadToCloudinary(req.file)
        } 
        let shop=await Shop.findOne({owner:req.userId})
        if(!shop){

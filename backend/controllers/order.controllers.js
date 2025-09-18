@@ -125,7 +125,9 @@ export const placeOrder = async (req, res) => {
                         shopOrders: shopOrder,
                         createdAt: newOrder.createdAt,
                         deliveryAddress: newOrder.deliveryAddress,
-                        payment: newOrder.payment
+                        payment: newOrder.payment,
+                        isCancelled: newOrder.isCancelled,
+                        cancellationReason: newOrder.cancellationReason
                     })
                 }
             });
@@ -177,16 +179,66 @@ export const verifyPayment = async (req, res) => {
                 }
             });
         }
-
-
-        return res.status(200).json(order)
-
     } catch (error) {
-        return res.status(500).json({ message: `verify payment  error ${error}` })
+        console.error('Error in deleteOrder:', error)
+        res.status(500).json({ message: "Internal server error" })
     }
 }
 
-
+export const cancelOrder = async (req, res) => {
+    try {
+        const { orderId } = req.params
+        const { reason } = req.body
+        
+        const order = await Order.findById(orderId)
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" })
+        }
+        
+        // Check if the order belongs to the user
+        if (order.user.toString() !== req.userId.toString()) {
+            return res.status(403).json({ message: "Unauthorized to cancel this order" })
+        }
+        
+        // Check if order is already cancelled
+        if (order.isCancelled) {
+            return res.status(400).json({ message: "Order is already cancelled" })
+        }
+        
+        // Check if order can be cancelled (only pending orders can be cancelled)
+        const canCancel = order.shopOrders.some(shopOrder => shopOrder.status === 'pending')
+        if (!canCancel) {
+            return res.status(400).json({ message: "Order cannot be cancelled. It's already being prepared or delivered." })
+        }
+        
+        // Update order cancellation status
+        order.isCancelled = true
+        order.cancellationReason = reason || 'No reason provided'
+        
+        // Update all shop orders status to cancelled
+        order.shopOrders.forEach(shopOrder => {
+            if (shopOrder.status === 'pending') {
+                shopOrder.status = 'cancelled'
+            }
+        })
+        
+        await order.save()
+        
+        // Populate the order for response
+        await order.populate("shopOrders.shop", "name")
+        await order.populate("shopOrders.owner", "fullName email mobile")
+        await order.populate("shopOrders.shopOrderItems.item", "name image price")
+        
+        return res.status(200).json({ 
+            message: "Order cancelled successfully", 
+            order 
+        })
+        
+    } catch (error) {
+        console.error("Cancel order error:", error)
+        return res.status(500).json({ message: `Cancel order error: ${error.message}` })
+    }
+}
 
 export const getMyOrders = async (req, res) => {
     try {
@@ -235,7 +287,9 @@ export const getMyOrders = async (req, res) => {
                     shopOrders: ownerShopOrder,
                     createdAt: order.createdAt,
                     deliveryAddress: order.deliveryAddress,
-                    payment: order.payment
+                    payment: order.payment,
+                    isCancelled: order.isCancelled,
+                    cancellationReason: order.cancellationReason
                 }
             })).filter(order => order !== null)
 
@@ -265,11 +319,24 @@ export const getMyOrders = async (req, res) => {
                     deliveryAddress: order.deliveryAddress,
                     payment: order.payment,
                     deliveryOtp: deliveryBoyShopOrder.deliveryOtp,
-                    otpExpires: deliveryBoyShopOrder.otpExpires
+                    otpExpires: deliveryBoyShopOrder.otpExpires,
+                    isCancelled: order.isCancelled,
+                    cancellationReason: order.cancellationReason
                 }
             })).filter(order => order !== null)
 
             return res.status(200).json(filteredOrders)
+        } else if (user.role == "superadmin") {
+            // Superadmin can see all orders
+            const orders = await Order.find({})
+                .sort({ createdAt: -1 })
+                .populate("shopOrders.shop", "name")
+                .populate("shopOrders.owner", "fullName email mobile")
+                .populate("user", "fullName email mobile")
+                .populate("shopOrders.shopOrderItems.item", "name image price")
+                .populate("shopOrders.assignedDeliveryBoy", "fullName mobile")
+
+            return res.status(200).json(orders)
         }
 
         return res.status(400).json({ message: "Invalid user role" })

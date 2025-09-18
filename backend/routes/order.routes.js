@@ -1,6 +1,6 @@
 import express from "express"
 import isAuth from "../middlewares/isAuth.js"
-import { acceptOrder, deleteOrder, getCurrentOrder, getDeliveryBoyAssignment, getMyOrders, getOrderById, getTodayDeliveries, placeOrder, sendDeliveryOtp, updateOrderStatus, verifyDeliveryOtp, verifyPayment } from "../controllers/order.controllers.js"
+import { acceptOrder, cancelOrder, deleteOrder, getCurrentOrder, getDeliveryBoyAssignment, getMyOrders, getOrderById, getTodayDeliveries, placeOrder, sendDeliveryOtp, updateOrderStatus, verifyDeliveryOtp, verifyPayment } from "../controllers/order.controllers.js"
 
 
 
@@ -19,5 +19,6 @@ orderRouter.get('/accept-order/:assignmentId',isAuth,acceptOrder)
 orderRouter.get('/get-order-by-id/:orderId',isAuth,getOrderById)
 orderRouter.get('/get-today-deliveries',isAuth,getTodayDeliveries)
 orderRouter.delete('/delete-order/:orderId',isAuth,deleteOrder)
+orderRouter.post('/cancel-order/:orderId',isAuth,cancelOrder)
 
 export default orderRouter

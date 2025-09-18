@@ -9,6 +9,8 @@ import axios from 'axios';
 import { serverUrl } from '../App';
 import { setMyShopData } from '../redux/ownerSlice';
 import { ClipLoader } from 'react-spinners';
+import { fetchCategories } from '../category';
+
 function EditItem() {
     const navigate = useNavigate()
     const { myShopData } = useSelector(state => state.owner)
@@ -21,17 +23,7 @@ function EditItem() {
     const [category, setCategory] = useState("")
     const [foodType, setFoodType] = useState("")
    const [loading,setLoading]=useState(false)
-    const categories = ["Snacks",
-        "Main Course",
-        "Desserts",
-        "Pizza",
-        "Burgers",
-        "Sandwiches",
-        "South Indian",
-        "North Indian",
-        "Chinese",
-        "Fast Food",
-        "Others"]
+   const [dynamicCategories, setDynamicCategories] = useState([])
     const dispatch = useDispatch()
     const handleImage = (e) => {
         const file = e.target.files[0]
@@ -73,6 +65,20 @@ function EditItem() {
   }
   handleGetItemById()
     },[itemId])
+
+    // Fetch categories from API
+    useEffect(() => {
+        const loadCategories = async () => {
+            try {
+                const serverCategories = await fetchCategories();
+                setDynamicCategories(serverCategories);
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+                setDynamicCategories([]);
+            }
+        };
+        loadCategories();
+    }, []);
 
     useEffect(()=>{
      setName(currentItem?.name || "")
@@ -127,8 +133,8 @@ function EditItem() {
 
                         >
                             <option value="">select Category</option>
-                            {categories.map((cate, index) => (
-                                <option value={cate} key={index}>{cate}</option>
+                            {dynamicCategories.map((cate, index) => (
+                                <option value={cate.name} key={cate._id || index}>{cate.name}</option>
                             ))}
 
                         </select>

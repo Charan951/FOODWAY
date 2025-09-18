@@ -4,6 +4,7 @@ import {
     updateOwnerStatus, 
     getCategories, 
     createCategory, 
+    updateCategory,
     deleteCategory, 
     getUsersByRole, 
     getDashboardStats,
@@ -13,6 +14,7 @@ import {
     deleteUserType
 } from "../controllers/superadmin.controllers.js";
 import isAuth from "../middlewares/isAuth.js";
+import { upload } from "../middlewares/multer.js";
 
 const router = express.Router();
 
@@ -30,7 +32,8 @@ router.post("/update-owner-status", isAuth, isSuperAdmin, updateOwnerStatus);
 
 // Category management routes
 router.get("/categories", isAuth, isSuperAdmin, getCategories);
-router.post("/categories", isAuth, isSuperAdmin, createCategory);
+router.post("/categories", isAuth, isSuperAdmin, upload.single("image"), createCategory);
+router.put("/categories/:categoryId", isAuth, isSuperAdmin, upload.single("image"), updateCategory);
 router.delete("/categories/:categoryId", isAuth, isSuperAdmin, deleteCategory);
 
 // User search and management routes

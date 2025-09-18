@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Nav from './Nav.jsx'
-import { categories } from '../category'
+import { fetchCategories } from '../category'
 import CategoryCard from './CategoryCard'
 import { FaCircleChevronLeft } from "react-icons/fa6";
 import { FaCircleChevronRight } from "react-icons/fa6";
@@ -24,21 +24,19 @@ function UserDashboard() {
 
 // Fetch categories from API
 useEffect(() => {
-  const fetchCategories = async () => {
+  const loadCategories = async () => {
     try {
-      const response = await axios.get(`${serverUrl}/api/categories`, {
-        withCredentials: true
-      });
+      const serverCategories = await fetchCategories();
       // Add "All" category at the beginning and merge with API categories
-      const allCategory = { name: "All", _id: "all" };
-      setDynamicCategories([allCategory, ...response.data]);
+      const allCategory = { name: "All", _id: "all", image: null };
+      setDynamicCategories([allCategory, ...serverCategories]);
     } catch (error) {
       console.error('Error fetching categories:', error);
-      // Fallback to static categories if API fails
-      setDynamicCategories(categories.map(cat => ({ name: cat.category, _id: cat.category.toLowerCase() })));
+      // Fallback to just "All" category if API fails
+      setDynamicCategories([{ name: "All", _id: "all", image: null }]);
     }
   };
-  fetchCategories();
+  loadCategories();
 }, []);
 
 const handleFilterByCategory=(category)=>{
@@ -126,7 +124,7 @@ setRightButton(element.scrollLeft+element.clientWidth<element.scrollWidth)
 
           <div className='w-full flex overflow-x-auto gap-4 pb-2 ' ref={cateScrollRef}>
             {dynamicCategories.map((cate, index) => (
-              <CategoryCard name={cate.name} image={categories.find(c => c.category === cate.name)?.image || categories[0].image} key={index} onClick={()=>handleFilterByCategory(cate.name)}/>
+              <CategoryCard name={cate.name} image={cate.image} key={index} onClick={()=>handleFilterByCategory(cate.name)}/>
             ))}
           </div>
           {showRightCateButton &&  <button className='absolute right-0 top-1/2 -translate-y-1/2 bg-[#ff4d2d] text-white p-2 rounded-full shadow-lg hover:bg-[#e64528] z-10' onClick={()=>scrollHandler(cateScrollRef,"right")}>

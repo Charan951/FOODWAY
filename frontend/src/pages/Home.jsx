@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import UserDashboard from '../components/userDashboard'
@@ -10,10 +10,11 @@ function Home() {
     const navigate = useNavigate()
 
     // Redirect superadmin to their dashboard
-    if(userData?.role === 'superadmin') {
-        navigate('/superadmin')
-        return null
-    }
+    useEffect(() => {
+        if(userData?.role === 'superadmin') {
+            navigate('/superadmin')
+        }
+    }, [userData?.role, navigate])
 
   return (
     <div className='w-[100vw] min-h-[100vh] pt-[100px] flex flex-col items-center bg-[#fff9f6]'>

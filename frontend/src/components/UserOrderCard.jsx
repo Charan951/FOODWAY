@@ -12,6 +12,7 @@ function UserOrderCard({ data }) {
     const { myOrders } = useSelector(state => state.user)
     const [selectedRating, setSelectedRating] = useState({})//itemId:rating
     const [isDeleting, setIsDeleting] = useState(false)
+    const [isCancelling, setIsCancelling] = useState(false)
 
     const formatDate = (dateString) => {
         const date = new Date(dateString)
@@ -53,13 +54,46 @@ function UserOrderCard({ data }) {
         }
     }
 
+    const handleCancelOrder = async () => {
+        if (!window.confirm('Are you sure you want to cancel this order? This action cannot be undone.')) {
+            return
+        }
+        
+        setIsCancelling(true)
+        try {
+            await axios.post(`${serverUrl}/api/order/cancel-order/${data._id}`, { reason: 'User cancelled' }, { withCredentials: true })
+            // Update the order status in local state
+            const updatedOrders = myOrders.map(order => {
+                if (order._id === data._id) {
+                    return {
+                        ...order,
+                        isCancelled: true,
+                        cancellationReason: 'User cancelled',
+                        shopOrders: order.shopOrders.map(shopOrder => ({
+                            ...shopOrder,
+                            status: 'cancelled'
+                        }))
+                    }
+                }
+                return order
+            })
+            dispatch(setMyOrders(updatedOrders))
+            alert('Order cancelled successfully')
+        } catch (error) {
+            console.error('Error cancelling order:', error)
+            alert(error.response?.data?.message || 'Failed to cancel order. Please try again.')
+        } finally {
+            setIsCancelling(false)
+        }
+    }
+
 
     return (
         <div className='bg-white rounded-lg shadow p-4 space-y-4'>
             <div className='flex justify-between border-b pb-2'>
                 <div>
                     <p className='font-semibold'>
-                        order #{data._id.slice(-6)}
+                        order #{data.orderId || data._id.slice(-6)}
                     </p>
                     <p className='text-sm text-gray-500'>
                         Date: {formatDate(data.createdAt)}
@@ -68,7 +102,9 @@ function UserOrderCard({ data }) {
                 <div className='text-right'>
                     {data.paymentMethod == "cod" ? <p className='text-sm text-gray-500'>{data.paymentMethod?.toUpperCase()}</p> : <p className='text-sm text-gray-500 font-semibold'>Payment: {data.payment ? "true" : "false"}</p>}
 
-                    <p className='font-medium text-blue-600'>{data.shopOrders?.[0].status}</p>
+                    <p className='font-medium text-blue-600'>
+                        {data.isCancelled ? 'cancelled' : data.shopOrders?.[0].status}
+                    </p>
                 </div>
             </div>
 
@@ -96,7 +132,9 @@ function UserOrderCard({ data }) {
                     </div>
                     <div className='flex justify-between items-center border-t pt-2'>
                         <p className='font-semibold'>Subtotal: {shopOrder.subtotal}</p>
-                        <span className='text-sm font-medium text-blue-600'>{shopOrder.status}</span>
+                        <span className='text-sm font-medium text-blue-600'>
+                            {data.isCancelled ? 'cancelled' : shopOrder.status}
+                        </span>
                     </div>
                     
                     {/* OTP Display for Out of Delivery Status */}
@@ -126,6 +164,16 @@ function UserOrderCard({ data }) {
             <div className='flex justify-between items-center border-t pt-2'>
                 <p className='font-semibold'>Total: ₹{data.totalAmount}</p>
                 <div className='flex gap-2'>
+                    {/* Show cancel button only for pending orders and not cancelled orders */}
+                    {data.shopOrders.some(shopOrder => shopOrder.status === 'pending') && !data.isCancelled && (
+                        <button 
+                            className='bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50' 
+                            onClick={handleCancelOrder}
+                            disabled={isCancelling}
+                        >
+                            {isCancelling ? 'Cancelling...' : 'Cancel Order'}
+                        </button>
+                    )}
                     <button 
                         className='bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50' 
                         onClick={handleDeleteOrder}

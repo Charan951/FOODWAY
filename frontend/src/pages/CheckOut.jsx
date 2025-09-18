@@ -13,17 +13,63 @@ import { addMyOrder, setTotalAmount, clearCart } from '../redux/userSlice';
 function CheckOut() {
   const { cartItems ,totalAmount,userData} = useSelector(state => state.user)
   const [addressInput, setAddressInput] = useState("")
+  const [phoneNumber, setPhoneNumber] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("cod")
   const [orderType, setOrderType] = useState("delivery") // delivery or pickup
   const navigate=useNavigate()
   const dispatch = useDispatch()
-  const deliveryFee=orderType === "delivery" ? (totalAmount>500?0:40) : 0
-  const AmountWithDeliveryFee=totalAmount+deliveryFee
+  // New delivery fee calculation based on the formula:
+  // Payout=max(MinFloor,(B+(D_rate×dist)+(T_rate×travel_time)+C)×M_demand+I−P)
+  const calculateDeliveryFee = () => {
+    if (orderType !== "delivery") return 0;
+    
+    // Constants for the formula
+    const MinFloor = 30; // Minimum payout ₹30
+    const B = totalAmount < 100 ? 20 : 15; // Base pay: ₹20 for below 1km equivalent, ₹15 otherwise
+    const D_rate = 50; // Distance rate ₹50/km
+    const T_rate = 1; // Time rate ₹1/min
+    const C = 0; // Order complexity fee (standard order)
+    const I = 20; // Incentives ₹20 bonus
+    const P = 0; // Cancellation penalty ₹0
+    
+    // Estimated values (in real app, these would come from maps API)
+    const estimatedDistance = 1.5; // km
+    const estimatedTravelTime = 10; // minutes
+    
+    // Check if it's peak hours (6-9 AM, 12-2 PM, 6-10 PM)
+    const currentHour = new Date().getHours();
+    const isPeakHours = (currentHour >= 6 && currentHour <= 9) || 
+                       (currentHour >= 12 && currentHour <= 14) || 
+                       (currentHour >= 18 && currentHour <= 22);
+    const M_demand = isPeakHours ? 1.5 : 1.0; // Demand multiplier
+    
+    // Calculate payout using the formula
+    const calculatedPayout = (B + (D_rate * estimatedDistance) + (T_rate * estimatedTravelTime) + C) * M_demand + I - P;
+    const finalPayout = Math.max(MinFloor, calculatedPayout);
+    
+    return Math.round(finalPayout);
+  };
+  
+  const deliveryFee = calculateDeliveryFee();
+  const AmountWithDeliveryFee = totalAmount + deliveryFee;
 
   const handlePlaceOrder=async () => {
     // Validate required fields
     if (orderType === "delivery" && (!addressInput || addressInput.trim() === '')) {
       alert('Please enter a delivery address');
+      return;
+    }
+    
+    // Validate phone number (mandatory for all orders)
+    if (!phoneNumber || phoneNumber.trim() === '') {
+      alert('Please enter your phone number');
+      return;
+    }
+    
+    // Validate phone number format (exactly 10 digits)
+    const phoneRegex = /^\d{10}$/;
+    if (!phoneRegex.test(phoneNumber.trim())) {
+      alert('Please enter a valid 10-digit phone number');
       return;
     }
     
@@ -34,6 +80,7 @@ function CheckOut() {
         deliveryAddress: orderType === "delivery" ? {
           text:addressInput.trim()
         } : null,
+        phoneNumber: phoneNumber.trim(),
         totalAmount:AmountWithDeliveryFee,
         cartItems
       },{withCredentials:true})
@@ -143,6 +190,30 @@ const openRazorpayWindow=(orderId,razorOrder)=>{
           </div>
         </section>
         )}
+
+        {/* Phone Number - Mandatory for all orders */}
+        <section>
+          <h2 className='text-lg font-semibold mb-2 flex items-center gap-2 text-gray-800'>
+            <FaMobileScreenButton className='text-[#ff4d2d]' /> Phone Number *
+          </h2>
+          <div className='space-y-3'>
+            <input 
+              type="tel" 
+              className='w-full border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#ff4d2d]' 
+              placeholder='Enter your 10-digit phone number (e.g., 9876543210)' 
+              value={phoneNumber} 
+              onChange={(e) => {
+                // Only allow digits and limit to 10 characters
+                const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                setPhoneNumber(value);
+              }}
+              maxLength="10"
+            />
+            <p className='text-xs text-gray-500'>
+              Please enter a valid 10-digit phone number for order updates and delivery coordination.
+            </p>
+          </div>
+        </section>
 
         <section>
           <h2 className='text-lg font-semibold mb-3 text-gray-800'>Payment Method</h2>

@@ -6,7 +6,7 @@ import { ClipLoader } from 'react-spinners'
 import { useDispatch, useSelector } from 'react-redux'
 import { updateOrderStatus, setMyOrders } from '../redux/userSlice'
 
-function DeliveryBoyOrderCard({ data }) {
+function DeliveryBoyOrderCard({ data, onOrderUpdate }) {
     const [isDeleting, setIsDeleting] = useState(false)
     const dispatch = useDispatch()
     const { myOrders } = useSelector(state => state.user)
@@ -32,9 +32,14 @@ function DeliveryBoyOrderCard({ data }) {
         try {
             const result = await axios.post(`${serverUrl}/api/order/verify-delivery-otp/${data._id}`, { otp }, { withCredentials: true })
             setMessage(result.data.message)
-            setTimeout(() => {
-                window.location.reload()
-            }, 2000)
+            // Update the order status locally and notify parent component
+            dispatch(updateOrderStatus({ orderId: data._id, status: 'delivered' }))
+            setOtp("")
+            setShowOtpBox(false)
+            // Call parent callback to refresh data if provided
+            if (onOrderUpdate) {
+                onOrderUpdate()
+            }
         } catch (error) {
             setMessage(error.response?.data?.message || "Invalid OTP")
         }

@@ -9,6 +9,8 @@ import axios from 'axios';
 import { serverUrl } from '../App';
 import { setMyShopData } from '../redux/ownerSlice';
 import { ClipLoader } from 'react-spinners';
+import { fetchCategories, categories } from '../category';
+
 function AddItem() {
     const navigate = useNavigate()
     const { myShopData } = useSelector(state => state.owner)
@@ -20,41 +22,27 @@ function AddItem() {
     const [category, setCategory] = useState("")
     const [foodType, setFoodType] = useState("veg")
     const [dynamicCategories, setDynamicCategories] = useState([])
-    const categories = ["Snacks",
-        "Main Course",
-        "Desserts",
-        "Pizza",
-        "Burgers",
-        "Sandwiches",
-        "South Indian",
-        "North Indian",
-        "Chinese",
-        "Fast Food",
-        "Others"]
+    const [error, setError] = useState("")
+    const [success, setSuccess] = useState("")
     const dispatch = useDispatch()
 
     // Fetch categories from API
     useEffect(() => {
-        const fetchCategories = async () => {
+        const loadCategories = async () => {
             try {
-                const response = await axios.get(`${serverUrl}/api/categories`, {
-                    withCredentials: true
-                });
-                setDynamicCategories(response.data);
+                const serverCategories = await fetchCategories();
+                setDynamicCategories(serverCategories);
                 // Set first category as default if available
-                if (response.data.length > 0 && !category) {
-                    setCategory(response.data[0].name);
+                if (serverCategories.length > 0 && !category) {
+                    setCategory(serverCategories[0].name);
                 }
             } catch (error) {
                 console.error('Error fetching categories:', error);
-                // Fallback to static categories if API fails
-                setDynamicCategories(categories.map(cat => ({ name: cat, _id: cat.toLowerCase() })));
-                if (!category) {
-                    setCategory(categories[0]);
-                }
+                // Set empty array if API fails
+                setDynamicCategories([]);
             }
         };
-        fetchCategories();
+        loadCategories();
     }, []);
 
     const handleImage = (e) => {
@@ -66,6 +54,26 @@ function AddItem() {
     const handleSubmit = async (e) => {
         e.preventDefault()
         setLoading(true)
+        setError("")
+        setSuccess("")
+        
+        // Basic validation
+        if (!name.trim()) {
+            setError("Please enter a food name")
+            setLoading(false)
+            return
+        }
+        if (!category) {
+            setError("Please select a category")
+            setLoading(false)
+            return
+        }
+        if (!price || price <= 0) {
+            setError("Please enter a valid price")
+            setLoading(false)
+            return
+        }
+        
         try {
             const formData = new FormData()
             formData.append("name",name)
@@ -77,10 +85,23 @@ function AddItem() {
             }
             const result = await axios.post(`${serverUrl}/api/item/add-item`, formData, { withCredentials: true })
             dispatch(setMyShopData(result.data))
-           setLoading(false)
-           navigate("/")
+            setSuccess("Item added successfully!")
+            setLoading(false)
+            
+            // Reset form
+            setName("")
+            setPrice(0)
+            setFrontendImage(null)
+            setBackendImage(null)
+            
+            // Navigate after a short delay to show success message
+            setTimeout(() => {
+                navigate("/")
+            }, 1500)
         } catch (error) {
             console.log(error)
+            const errorMessage = error.response?.data?.message || "Failed to add item. Please try again."
+            setError(errorMessage)
             setLoading(false)
         }
     }
@@ -100,6 +121,20 @@ function AddItem() {
                     </div>
                 </div>
                 <form className='space-y-5' onSubmit={handleSubmit}>
+                    {/* Error Message */}
+                    {error && (
+                        <div className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg'>
+                            {error}
+                        </div>
+                    )}
+                    
+                    {/* Success Message */}
+                    {success && (
+                        <div className='bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg'>
+                            {success}
+                        </div>
+                    )}
+                    
                     <div>
                         <label className='block text-sm font-medium text-gray-700 mb-1'>Name</label>
                         <input type="text" placeholder='Enter Food Name' className='w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500'

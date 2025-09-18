@@ -92,13 +92,21 @@ function OwnerOrderCard({ data }) {
             </div>
 
             <div className='flex justify-between items-center mt-auto pt-3 border-t border-gray-100'>
-                <span className='text-sm'>Status: <span className='font-semibold capitalize text-[#ff4d2d]'>{data?.shopOrders?.status || 'Unknown'}</span></span>
-                <select className='rounded-md border px-3 py-1 text-sm focus:outline-none focus:ring-2 border-[#ff4d2d] text-[#ff4d2d]' onChange={(e)=>handleUpdateStatus(data._id,data?.shopOrders?.shop?._id,e.target.value)}>
-                    <option value="">Change Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="preparing">Preparing</option>
-                    <option value="out of delivery">Out Of Delivery</option>
-                </select>
+                <span className='text-sm'>Status: <span className='font-semibold capitalize text-[#ff4d2d]'>
+                    {data?.isCancelled ? 'cancelled' : (data?.shopOrders?.status || 'Unknown')}
+                </span></span>
+                {/* Disable status change dropdown after order is placed (only allow changes for pending status) */}
+                {data?.shopOrders?.status === "pending" && !data?.isCancelled ? (
+                    <select className='rounded-md border px-3 py-1 text-sm focus:outline-none focus:ring-2 border-[#ff4d2d] text-[#ff4d2d]' onChange={(e)=>handleUpdateStatus(data._id,data?.shopOrders?.shop?._id,e.target.value)}>
+                        <option value="">Change Status</option>
+                        <option value="preparing">Preparing</option>
+                        <option value="out of delivery">Out Of Delivery</option>
+                    </select>
+                ) : (
+                    <span className='text-xs text-gray-500 italic'>
+                        {data?.isCancelled ? 'Order cancelled by customer' : 'Status cannot be changed'}
+                    </span>
+                )}
             </div>
 
             {data?.shopOrders?.status === "out of delivery" && 

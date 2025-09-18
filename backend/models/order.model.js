@@ -1,5 +1,23 @@
 import mongoose from "mongoose";
 
+// Counter schema for sequential order IDs
+const counterSchema = new mongoose.Schema({
+    _id: { type: String, required: true },
+    seq: { type: Number, default: 0 }
+});
+
+const Counter = mongoose.model('Counter', counterSchema);
+
+// Function to get next sequence number
+const getNextSequence = async (name) => {
+    const counter = await Counter.findByIdAndUpdate(
+        name,
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+    );
+    return counter.seq;
+};
+
 const shopOrderItemSchema = new mongoose.Schema({
     item:{
         type: mongoose.Schema.Types.ObjectId,
@@ -24,7 +42,7 @@ const shopOrderSchema = new mongoose.Schema({
     shopOrderItems: [shopOrderItemSchema],
     status:{
         type:String,
-        enum:["pending","preparing","out of delivery","delivered"],
+        enum:["pending","preparing","out of delivery","delivered","cancelled"],
         default:"pending"
     },
   assignment:{
@@ -56,6 +74,10 @@ deliveredAt:{
 }, { timestamps: true })
 
 const orderSchema = new mongoose.Schema({
+    orderId: {
+        type: Number,
+        unique: true
+    },
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User"
@@ -91,8 +113,28 @@ const orderSchema = new mongoose.Schema({
    razorpayPaymentId:{
     type:String,
        default:""
+   },
+   isCancelled: {
+       type: Boolean,
+       default: false
+   },
+   cancellationReason: {
+       type: String,
+       default: null
+   },
+   cancelledAt: {
+       type: Date,
+       default: null
    }
 }, { timestamps: true })
+
+// Pre-save middleware to generate sequential order ID
+orderSchema.pre('save', async function(next) {
+    if (this.isNew && !this.orderId) {
+        this.orderId = await getNextSequence('orderId');
+    }
+    next();
+});
 
 const Order=mongoose.model("Order",orderSchema)
 export default Order

@@ -15,19 +15,19 @@ const itemSchema = new mongoose.Schema({
     },
     category: {
         type: String,
-        enum: ["Snacks",
-            "Main Course",
-            "Desserts",
-            "Pizza",
-            "Burgers",
-            "Sandwiches",
-            "South Indian",
-            "North Indian",
-            "Chinese",
-            "Fast Food",
-            "Others"
-        ],
-        required:true
+        required: true,
+        validate: {
+            validator: async function(value) {
+                // Import Category model dynamically to avoid circular dependency
+                const Category = mongoose.model('Category');
+                const category = await Category.findOne({ 
+                    name: { $regex: new RegExp(`^${value}$`, 'i') }, 
+                    isActive: true 
+                });
+                return !!category;
+            },
+            message: 'Category does not exist or is not active'
+        }
     },
     price:{
         type:Number,

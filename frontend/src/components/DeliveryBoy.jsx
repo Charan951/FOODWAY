@@ -109,8 +109,13 @@ const [message,setMessage]=useState("")
       },{withCredentials:true})
     console.log(result.data)
     setMessage(result.data.message)
-    // Refresh the page to update the order status
-    window.location.reload()
+    // Update state instead of refreshing the page
+    setCurrentOrder(null)
+    setOtp("")
+    setShowOtpBox(false)
+    // Refresh data to get updated assignments and today's deliveries
+    await getAssignments()
+    await handleTodayDeliveries()
     } catch (error) {
       // Only log unexpected errors
       if (error.response && error.response.status !== 400) {

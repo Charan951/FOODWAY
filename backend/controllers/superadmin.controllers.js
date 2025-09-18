@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import Category from "../models/category.model.js";
 import UserType from "../models/userType.model.js";
+import uploadToCloudinary from "../utils/s3Upload.js";
 
 // Get all pending owners for approval
 export const getPendingOwners = async (req, res) => {
@@ -48,17 +49,119 @@ export const getCategories = async (req, res) => {
 // Create new category
 export const createCategory = async (req, res) => {
     try {
+        console.log('Request body:', req.body);
+        console.log('Request file:', req.file);
+        
         const { name, description } = req.body;
         
-        const existingCategory = await Category.findOne({ name });
-        if (existingCategory) {
-            return res.status(400).json({ message: "Category already exists" });
+        if (!name || !name.trim()) {
+            console.log('Category creation failed: Name is required');
+            return res.status(400).json({ message: "Name is required" });
         }
         
-        const category = await Category.create({ name, description });
+        // Check for existing category (case-insensitive)
+        const existingCategory = await Category.findOne({ 
+            name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
+            isActive: true 
+        });
+        if (existingCategory) {
+            console.log(`Category creation failed: Category '${name}' already exists`);
+            return res.status(400).json({ message: `Category '${name}' already exists` });
+        }
+        
+        let image = null;
+        if (req.file) {
+            try {
+                console.log('Attempting to upload image to Cloudinary...');
+                image = await uploadToCloudinary(req.file);
+                if (image) {
+                    console.log('Image uploaded successfully:', image);
+                } else {
+                    console.log('Cloudinary upload returned null - not configured, creating category without image');
+                }
+            } catch (uploadError) {
+                console.error('Cloudinary upload failed:', uploadError);
+                // Continue without image if Cloudinary fails
+                console.log('Creating category without image due to Cloudinary error');
+            }
+        }
+        
+        const category = await Category.create({ 
+            name: name.trim(), 
+            description: description || '', 
+            image: image || '' 
+        });
+        console.log('Category created successfully:', category);
         res.status(201).json(category);
     } catch (error) {
-        res.status(500).json({ message: `Error creating category: ${error}` });
+        console.error('Category creation error:', error);
+        if (error.code === 11000) {
+            // MongoDB duplicate key error
+            return res.status(400).json({ message: "Category name already exists" });
+        }
+        res.status(500).json({ message: `Error creating category: ${error.message}` });
+    }
+};
+
+// Update category
+export const updateCategory = async (req, res) => {
+    try {
+        const { categoryId } = req.params;
+        const { name, description } = req.body;
+        
+        console.log('Update category request:', { categoryId, name, description });
+        console.log('Request file:', req.file);
+        
+        if (!name) {
+            return res.status(400).json({ message: "Name is required" });
+        }
+        
+        // Check if category exists
+        const existingCategory = await Category.findById(categoryId);
+        if (!existingCategory) {
+            return res.status(404).json({ message: "Category not found" });
+        }
+        
+        // Check if name is already taken by another category
+        const duplicateCategory = await Category.findOne({ 
+            name, 
+            _id: { $ne: categoryId },
+            isActive: true 
+        });
+        if (duplicateCategory) {
+            return res.status(400).json({ message: "Category name already exists" });
+        }
+        
+        // Prepare update data
+        const updateData = { name, description };
+        
+        // Handle image upload if provided
+        if (req.file) {
+            try {
+                const imageUrl = await uploadToCloudinary(req.file);
+                if (imageUrl) {
+                    updateData.image = imageUrl;
+                    console.log('Image uploaded successfully:', imageUrl);
+                } else {
+                    console.log('Cloudinary upload skipped - not configured, continuing without image update');
+                }
+            } catch (uploadError) {
+                console.error('Cloudinary upload failed during update:', uploadError);
+                // Continue without image update instead of failing the entire operation
+                console.log('Continuing category update without image due to Cloudinary error');
+            }
+        }
+        
+        const updatedCategory = await Category.findByIdAndUpdate(
+            categoryId, 
+            updateData, 
+            { new: true }
+        );
+        
+        res.status(200).json(updatedCategory);
+    } catch (error) {
+        console.error('Category update error:', error);
+        res.status(500).json({ message: `Error updating category: ${error.message}` });
     }
 };
 
