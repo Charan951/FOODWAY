@@ -22,7 +22,7 @@ const checkShopData = async () => {
             
             // Update the existing shop to have proper city data
             const firstShop = shops[0];
-            if (firstShop.city === 'hyd' || !firstShop.city || !firstShop.state) {
+            if (firstShop.city === 'hyd' || firstShop.city === 'Hyderaba' || !firstShop.city || !firstShop.state) {
                 console.log('\nUpdating shop with proper city/state data...');
                 await Shop.findByIdAndUpdate(firstShop._id, {
                     city: 'Hyderabad',
