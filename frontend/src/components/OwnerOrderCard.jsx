@@ -84,6 +84,16 @@ function OwnerOrderCard({ data }) {
                             <img src={item.item?.image || '/placeholder-food.jpg'} alt={item.name || 'Food item'} className='w-full h-24 object-cover rounded' />
                             <p className='text-sm font-semibold mt-1'>{item.name || item.item?.name || 'Unknown Item'}</p>
                             <p className='text-xs text-gray-500'>Qty: {item.quantity || 0} x ₹{item.price || item.item?.price || 0}</p>
+                            
+                            {/* Display item rating */}
+                            {item.item?.rating && (item.item.rating.count > 0 || item.item.rating.average > 0) && (
+                                <div className='flex items-center gap-1 mt-1'>
+                                    <span className='text-yellow-500 text-xs'>★</span>
+                                    <span className='text-xs text-gray-600'>
+                                        {item.item.rating.average.toFixed(1)} ({item.item.rating.count})
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     ))
                 ) : (
@@ -95,16 +105,18 @@ function OwnerOrderCard({ data }) {
                 <span className='text-sm'>Status: <span className='font-semibold capitalize text-[#ff4d2d]'>
                     {data?.isCancelled ? 'cancelled' : (data?.shopOrders?.status || 'Unknown')}
                 </span></span>
-                {/* Disable status change dropdown after order is placed (only allow changes for pending status) */}
-                {data?.shopOrders?.status === "pending" && !data?.isCancelled ? (
+                {/* Allow status changes only before 'out of delivery' status */}
+                {(data?.shopOrders?.status === "pending" || data?.shopOrders?.status === "preparing") && !data?.isCancelled ? (
                     <select className='rounded-md border px-3 py-1 text-sm focus:outline-none focus:ring-2 border-[#ff4d2d] text-[#ff4d2d]' onChange={(e)=>handleUpdateStatus(data._id,data?.shopOrders?.shop?._id,e.target.value)}>
                         <option value="">Change Status</option>
-                        <option value="preparing">Preparing</option>
-                        <option value="out of delivery">Out Of Delivery</option>
+                        {data?.shopOrders?.status === "pending" && <option value="preparing">Preparing</option>}
+                        {(data?.shopOrders?.status === "pending" || data?.shopOrders?.status === "preparing") && <option value="out of delivery">Out Of Delivery</option>}
                     </select>
                 ) : (
                     <span className='text-xs text-gray-500 italic'>
-                        {data?.isCancelled ? 'Order cancelled by customer' : 'Status cannot be changed'}
+                        {data?.isCancelled ? 'Order cancelled by customer' : 
+                         data?.shopOrders?.status === "out of delivery" ? 'Order is out for delivery' : 
+                         'Status cannot be changed'}
                     </span>
                 )}
             </div>

@@ -13,6 +13,8 @@ function UserOrderCard({ data }) {
     const [selectedRating, setSelectedRating] = useState({})//itemId:rating
     const [isDeleting, setIsDeleting] = useState(false)
     const [isCancelling, setIsCancelling] = useState(false)
+    const [isEditingInstructions, setIsEditingInstructions] = useState(false)
+    const [specialInstructions, setSpecialInstructions] = useState(data.specialInstructions || '')
 
     const formatDate = (dateString) => {
         const date = new Date(dateString)
@@ -85,6 +87,38 @@ function UserOrderCard({ data }) {
         } finally {
             setIsCancelling(false)
         }
+    }
+
+    const handleUpdateSpecialInstructions = async () => {
+        try {
+            const response = await axios.put(`${serverUrl}/api/order/update-special-instructions/${data._id}`, 
+                { specialInstructions }, 
+                { withCredentials: true }
+            )
+            
+            // Update the order in local state
+            const updatedOrders = myOrders.map(order => {
+                if (order._id === data._id) {
+                    return {
+                        ...order,
+                        specialInstructions: specialInstructions
+                    }
+                }
+                return order
+            })
+            dispatch(setMyOrders(updatedOrders))
+            setIsEditingInstructions(false)
+            alert('Special instructions updated successfully')
+        } catch (error) {
+            console.error('Error updating special instructions:', error)
+            alert(error.response?.data?.message || 'Failed to update special instructions')
+        }
+    }
+
+    const canEditInstructions = () => {
+        return data.shopOrders.some(shopOrder => 
+            shopOrder.status === 'pending' || shopOrder.status === 'preparing'
+        ) && !data.isCancelled
     }
 
 
@@ -160,6 +194,62 @@ function UserOrderCard({ data }) {
                     )}
                 </div>
             ))}
+
+            {/* Special Instructions Section */}
+            {(data.specialInstructions || canEditInstructions()) && (
+                <div className='mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-400 rounded-lg'>
+                    <div className='flex items-start justify-between'>
+                        <div className='flex-1'>
+                            <h4 className='text-lg font-bold text-blue-800 mb-2 flex items-center'>
+                                📝 Special Instructions
+                            </h4>
+                            {isEditingInstructions ? (
+                                <div className='space-y-3'>
+                                    <textarea
+                                        value={specialInstructions}
+                                        onChange={(e) => setSpecialInstructions(e.target.value)}
+                                        placeholder="Add any special instructions for your order..."
+                                        className='w-full p-3 border border-blue-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500'
+                                        rows={3}
+                                        maxLength={500}
+                                    />
+                                    <div className='flex gap-2'>
+                                        <button
+                                            onClick={handleUpdateSpecialInstructions}
+                                            className='bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm'
+                                        >
+                                            Save
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsEditingInstructions(false)
+                                                setSpecialInstructions(data.specialInstructions || '')
+                                            }}
+                                            className='bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm'
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className='bg-white p-3 rounded-lg border border-blue-200 shadow-sm'>
+                                    <p className='text-blue-700 text-sm leading-relaxed'>
+                                        {data.specialInstructions || 'No special instructions added'}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                        {canEditInstructions() && !isEditingInstructions && (
+                            <button
+                                onClick={() => setIsEditingInstructions(true)}
+                                className='ml-3 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm'
+                            >
+                                Edit
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <div className='flex justify-between items-center border-t pt-2'>
                 <p className='font-semibold'>Total: ₹{data.totalAmount}</p>

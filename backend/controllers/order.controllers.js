@@ -862,6 +862,46 @@ export const deleteOrder = async (req, res) => {
     }
 }
 
+export const updateSpecialInstructions = async (req, res) => {
+    try {
+        const { orderId } = req.params
+        const { specialInstructions } = req.body
+        const userId = req.userId
+        
+        // Find the order
+        const order = await Order.findById(orderId)
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" })
+        }
+        
+        // Check if the user owns this order
+        if (order.user.toString() !== userId) {
+            return res.status(403).json({ message: "You can only update your own orders" })
+        }
+        
+        // Check if order can be modified (only pending and preparing orders)
+        const canModify = order.shopOrders.some(shopOrder => 
+            shopOrder.status === "pending" || shopOrder.status === "preparing"
+        )
+        
+        if (!canModify) {
+            return res.status(400).json({ message: "Special instructions can only be updated for pending or preparing orders" })
+        }
+        
+        // Update special instructions
+        order.specialInstructions = specialInstructions
+        await order.save()
+        
+        return res.status(200).json({ 
+            message: "Special instructions updated successfully",
+            specialInstructions: order.specialInstructions
+        })
+    } catch (error) {
+        console.error("Update special instructions error:", error)
+        return res.status(500).json({ message: `Update special instructions error: ${error.message}` })
+    }
+}
+
 export const autoRegenerateOtps = async () => {
     try {
         const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000)

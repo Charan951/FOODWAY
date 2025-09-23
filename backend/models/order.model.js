@@ -125,6 +125,10 @@ const orderSchema = new mongoose.Schema({
    cancelledAt: {
        type: Date,
        default: null
+   },
+   specialInstructions: {
+       type: String,
+       default: null
    }
 }, { timestamps: true })
 
