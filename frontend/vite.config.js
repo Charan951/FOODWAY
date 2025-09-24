@@ -10,9 +10,19 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: undefined,
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          redux: ['@reduxjs/toolkit', 'react-redux'],
+          ui: ['react-icons', 'react-spinners'],
+          charts: ['recharts'],
+          maps: ['leaflet', 'react-leaflet'],
+          firebase: ['firebase'],
+          http: ['axios', 'socket.io-client']
+        },
       },
     },
+    chunkSizeWarningLimit: 1000,
   },
   base: '/',
   define: {
