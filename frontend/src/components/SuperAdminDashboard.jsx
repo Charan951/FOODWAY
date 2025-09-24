@@ -42,7 +42,8 @@ const SuperAdminDashboard = () => {
     const [newUserType, setNewUserType] = useState({ name: '', description: '', deliveryAllowed: false });
 
     // Set axios defaults
-    axios.defaults.baseURL = 'http://localhost:8000';
+    const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:8000';
+    axios.defaults.baseURL = serverUrl;
     axios.defaults.withCredentials = true;
 
     useEffect(() => {
