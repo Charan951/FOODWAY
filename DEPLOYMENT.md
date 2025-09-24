@@ -41,10 +41,10 @@ CLOUDINARY_API_KEY=478681192216688
 CLOUDINARY_API_SECRET=du1JrEvTmjfmDiDa-Yi9cfP4MWc
 RAZORPAY_KEY_ID=rzp_test_RAcgtscfNdp1cg
 RAZORPAY_KEY_SECRET=MWn5u9N8yFYjgQpVlNvix93f
-FRONTEND_URL=https://your-frontend-app.vercel.app
+FRONTEND_URL=https://foodway-16ko.vercel.app
 ```
 
-**Important**: Replace `https://your-frontend-app.vercel.app` with your actual Vercel deployment URL after frontend deployment.
+**CRITICAL**: The FRONTEND_URL must be set to `https://foodway-16ko.vercel.app` (without trailing slash) to fix CORS issues. If you're using a different Vercel URL, make sure there's no trailing slash.
 
 ### Step 4: Deploy
 1. Click "Create Web Service"
@@ -211,6 +211,28 @@ If Vercel continues to have issues, you can also deploy to:
 - **Render**: Upgrade to paid plans for better performance and custom domains
 - **Vercel**: Automatic scaling for frontend, monitor usage limits
 - **Database**: Consider upgrading MongoDB Atlas cluster for production workloads
+
+## Troubleshooting Common Issues
+
+### CORS Policy Error
+If you see this error in the browser console:
+```
+Access to XMLHttpRequest at 'https://foodway-olr9.onrender.com/api/user/current' from origin 'https://foodway-16ko.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://foodway-16ko.vercel.app/' that is not equal to the supplied origin.
+```
+
+**Solution**: Update the FRONTEND_URL environment variable on Render:
+1. Go to your Render dashboard
+2. Select your backend service
+3. Go to "Environment" tab
+4. Update `FRONTEND_URL` to `https://foodway-16ko.vercel.app` (without trailing slash)
+5. Click "Save Changes"
+6. Wait for the service to redeploy automatically
+
+### Authentication Token Issues
+If you see "Token not found" errors:
+1. Ensure cookies are enabled in your browser
+2. Check that `withCredentials: true` is set in all axios requests
+3. Verify the backend CORS configuration allows credentials
 
 ---
 

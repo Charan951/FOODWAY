@@ -12,7 +12,7 @@ function useGetMyOrders() {
     useEffect(() => {
         // Skip if no userData or if it's the same user we already fetched for
         if (!userData || !userData._id) {
-            console.log('useGetMyOrders: No userData available, skipping fetch')
+            // User is not authenticated - this is normal behavior
             return
         }
         
