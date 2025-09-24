@@ -29,7 +29,9 @@ const io=new Server(server,{
     ],
     credentials:true,
     methods:['POST','GET', 'PUT', 'DELETE', 'OPTIONS']
-}
+},
+transports: ['websocket', 'polling'],
+allowEIO3: true
 })
 
 app.set("io",io)

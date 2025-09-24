@@ -1,5 +1,5 @@
 import axios from 'axios'
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { serverUrl } from '../App'
 import { useDispatch, useSelector } from 'react-redux'
 import { setMyOrders, setUserData } from '../redux/userSlice'
