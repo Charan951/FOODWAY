@@ -22,20 +22,10 @@ const server=http.createServer(app)
 
 const io=new Server(server,{
    cors:{
-    origin: [
-        process.env.FRONTEND_URL || "http://localhost:5173",
-        "https://foodway-16ko.vercel.app",
-        "http://localhost:5173"
-    ],
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     credentials:true,
-    methods:['POST','GET', 'PUT', 'DELETE', 'OPTIONS']
-},
-transports: ['websocket', 'polling'],
-allowEIO3: true,
-pingTimeout: 60000,
-pingInterval: 25000,
-upgradeTimeout: 30000,
-maxHttpBufferSize: 1e6
+    methods:['POST','GET']
+}
 })
 
 app.set("io",io)
@@ -48,14 +38,8 @@ app.use((req, res, next) => {
 
 const port=process.env.PORT || 5000
 app.use(cors({
-    origin: [
-        process.env.FRONTEND_URL || "http://localhost:5173",
-        "https://foodway-16ko.vercel.app",
-        "http://localhost:5173"
-    ],
-    credentials:true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials:true
 }))
 app.use(express.json())
 app.use(cookieParser())

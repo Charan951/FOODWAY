@@ -1,12 +1,16 @@
-import React, { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { IoIosArrowRoundBack } from "react-icons/io";
 import axios from 'axios'
+import React from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { serverUrl } from '../App'
+import { useEffect } from 'react'
+import { useState } from 'react'
+import { IoIosArrowRoundBack } from "react-icons/io";
+import { useSelector } from 'react-redux'
 function TrackOrderPage() {
     const { orderId } = useParams()
     const [currentOrder, setCurrentOrder] = useState() 
     const navigate = useNavigate()
+    const {socket}=useSelector(state=>state.user)
     
     const handleGetOrder = async () => {
         try {

@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react'
 import { IoIosArrowRoundBack } from "react-icons/io";
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FaUtensils } from "react-icons/fa";
 import { useState } from 'react';
+import { useRef } from 'react';
 import axios from 'axios';
 import { serverUrl } from '../App';
 import { setMyShopData } from '../redux/ownerSlice';
@@ -12,6 +13,7 @@ import { fetchCategories } from '../category';
 
 function EditItem() {
     const navigate = useNavigate()
+    const { myShopData } = useSelector(state => state.owner)
   const {itemId}=useParams()
    const [currentItem,setCurrentItem]=useState(null)
     const [name, setName] = useState("")

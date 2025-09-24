@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
-import Nav from './Nav'
+import Nav from './NaV.JSX'
 import { useSelector, useDispatch } from 'react-redux'
 import { FaUtensils, FaStore, FaToggleOn, FaToggleOff } from "react-icons/fa";
 import { useNavigate } from 'react-router-dom';
 import { FaPen } from "react-icons/fa";
-import OwnerItemCard from './OwnerItemCard';
+import OwnerItemCard from './ownerItemCard';
 import axios from 'axios';
 import { serverUrl } from '../App';
 import { setMyShopData } from '../redux/ownerSlice';

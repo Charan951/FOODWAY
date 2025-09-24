@@ -48,13 +48,10 @@ useUpdateLocation()
     const socketInstance=io(serverUrl,{
       withCredentials:true,
       transports: ['websocket', 'polling'], // Fallback to polling if websocket fails
-      timeout: 30000,
+      timeout: 20000,
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 10,
-      forceNew: true,
-      upgrade: true,
-      rememberUpgrade: false
+      reconnectionAttempts: 5
     })
     
     dispatch(setSocket(socketInstance))
