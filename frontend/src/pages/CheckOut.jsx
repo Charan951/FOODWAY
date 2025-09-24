@@ -106,6 +106,11 @@ function CheckOut() {
   }
 
 const openRazorpayWindow=(orderId,razorOrder)=>{
+  // Check if Razorpay is available
+  if (typeof window.Razorpay === 'undefined') {
+    alert('Payment service is currently unavailable. Please try again later or use Cash on Delivery.');
+    return;
+  }
 
   const options={
  key:import.meta.env.VITE_RAZORPAY_KEY_ID,
@@ -125,14 +130,23 @@ const openRazorpayWindow=(orderId,razorOrder)=>{
       navigate("/order-placed")
   } catch (error) {
     console.log(error)
+    alert('Payment verification failed. Please contact support.')
   }
+ },
+ modal: {
+   ondismiss: function() {
+     alert('Payment cancelled. You can try again or use Cash on Delivery.');
+   }
  }
   }
 
-  const rzp=new window.Razorpay(options)
-  rzp.open()
-
-
+  try {
+    const rzp=new window.Razorpay(options)
+    rzp.open()
+  } catch (error) {
+    console.error('Razorpay initialization error:', error);
+    alert('Payment service error. Please try Cash on Delivery or refresh the page.');
+  }
 }
 
 
