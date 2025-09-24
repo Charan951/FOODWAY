@@ -14,5 +14,8 @@ export default defineConfig({
       },
     },
   },
-  base: './',
+  base: '/',
+  define: {
+    global: 'globalThis',
+  },
 })

@@ -91,45 +91,77 @@ VITE_SERVER_URL=https://your-backend-app.onrender.com
 ### Troubleshooting Vercel Deployment Issues
 
 #### "vite command not found" Error
-If you encounter a "vite command not found" error during deployment:
+If you encounter a "vite command not found" error during deployment, try these solutions:
 
-1. **Ensure proper vercel.json configuration** (already included in your project):
+**Solution 1: Use @vercel/static-build (Recommended)**
+1. **Update vercel.json** (already configured in your project):
 ```json
 {
-  "buildCommand": "npm install && npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "framework": "vite"
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
 }
 ```
 
-2. **Check vite.config.js** has proper build configuration (already configured):
-```javascript
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  build: {
-    outDir: 'dist',
-    sourcemap: false,
-    rollupOptions: {
-      output: {
-        manualChunks: undefined,
-      },
-    },
-  },
-  base: './',
-})
-```
-
-3. **Verify package.json** has the correct build script:
+2. **Add vercel-build script** to package.json (already added):
 ```json
 {
   "scripts": {
-    "build": "vite build"
+    "vercel-build": "vite build"
   }
 }
 ```
 
-4. **Force redeploy**: After making these changes, trigger a new deployment in Vercel dashboard.
+3. **Specify Node.js version** with .nvmrc file (already created):
+```
+18
+```
+
+**Solution 2: Manual Deployment Steps**
+If the above doesn't work, try these steps:
+
+1. **Delete existing Vercel project** and create a new one
+2. **Import from GitHub** with these settings:
+   - Framework Preset: **Other**
+   - Root Directory: `frontend`
+   - Build Command: `npm run vercel-build`
+   - Output Directory: `dist`
+   - Install Command: `npm install`
+
+3. **Set Environment Variables** in Vercel dashboard:
+```
+VITE_FIREBASE_APIKEY=AIzaSyC0-4hmp6ACCt5DhDvq1NVPYe-mhpgmZPc
+VITE_GEOAPIKEY=AIzaSyC1kdddEeNHW4nvr4d_qO6vU2-QQBepwxc
+VITE_RAZORPAY_KEY_ID=rzp_test_RAcgtscfNdp1cg
+VITE_SERVER_URL=https://your-backend-app.onrender.com
+```
+
+**Solution 3: Alternative Deployment Method**
+If Vercel continues to have issues, you can also deploy to:
+- **Netlify**: Similar process, drag and drop the `dist` folder
+- **GitHub Pages**: Use GitHub Actions for deployment
+- **Firebase Hosting**: Google's hosting solution
+
+**Important Notes:**
+- Ensure your repository is pushed to GitHub with all recent changes
+- The build process should complete locally without errors
+- Check that all environment variables are set correctly in Vercel dashboard
 
 ## Post-Deployment Configuration
 
