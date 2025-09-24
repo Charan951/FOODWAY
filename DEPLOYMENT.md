@@ -71,8 +71,8 @@ VITE_SERVER_URL=https://your-backend-app.onrender.com
 4. Configure the project:
    - **Framework Preset**: Vite
    - **Root Directory**: `frontend`
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
+   - **Build Command**: `npm run build` (will be auto-detected from vercel.json)
+   - **Output Directory**: `dist` (will be auto-detected from vercel.json)
 
 ### Step 3: Set Environment Variables in Vercel
 In the Vercel project settings, add these environment variables:
@@ -87,6 +87,49 @@ VITE_SERVER_URL=https://your-backend-app.onrender.com
 1. Click "Deploy"
 2. Wait for the deployment to complete
 3. Note your frontend URL: `https://your-frontend-app.vercel.app`
+
+### Troubleshooting Vercel Deployment Issues
+
+#### "vite command not found" Error
+If you encounter a "vite command not found" error during deployment:
+
+1. **Ensure proper vercel.json configuration** (already included in your project):
+```json
+{
+  "buildCommand": "npm install && npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "framework": "vite"
+}
+```
+
+2. **Check vite.config.js** has proper build configuration (already configured):
+```javascript
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
+  },
+  base: './',
+})
+```
+
+3. **Verify package.json** has the correct build script:
+```json
+{
+  "scripts": {
+    "build": "vite build"
+  }
+}
+```
+
+4. **Force redeploy**: After making these changes, trigger a new deployment in Vercel dashboard.
 
 ## Post-Deployment Configuration
 
