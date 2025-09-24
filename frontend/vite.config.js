@@ -4,22 +4,13 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react()],
   build: {
     outDir: 'dist',
-    sourcemap: false,
+    sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-          redux: ['@reduxjs/toolkit', 'react-redux'],
-          ui: ['react-icons', 'react-spinners'],
-          charts: ['recharts'],
-          maps: ['leaflet', 'react-leaflet'],
-          firebase: ['firebase'],
-          http: ['axios', 'socket.io-client']
-        },
+        manualChunks: undefined,
       },
     },
     chunkSizeWarningLimit: 1000,
