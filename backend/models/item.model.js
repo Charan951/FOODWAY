@@ -36,7 +36,7 @@ const itemSchema = new mongoose.Schema({
     },
     foodType:{
         type:String,
-        enum:["veg","non veg"],
+        enum:["veg","non veg","vegan"],
         required:true
     },
    rating:{
@@ -48,6 +48,25 @@ const itemSchema = new mongoose.Schema({
    },
    state: {
        type: String
+   },
+   stockStatus: {
+       type: String,
+       enum: ["in_stock", "out_of_stock", "limited"],
+       default: "in_stock"
+   },
+   preparationTime: {
+       type: Number,
+       min: 1,
+       max: 120,
+       default: 15
+   },
+   popularity: {
+       type: Number,
+       default: 0
+   },
+   isNewItem: {
+       type: Boolean,
+       default: true
    }
 }, { timestamps: true })
 

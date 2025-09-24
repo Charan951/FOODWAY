@@ -375,7 +375,7 @@ const SuperAdminDashboard = () => {
                     <nav className="flex space-x-8">
                         {[
                             { id: 'dashboard', label: 'Dashboard' },
-                            { id: 'owners', label: 'Owner Approvals' },
+                            { id: 'owners', label: 'Delivery Boy Approvals' },
                             { id: 'categories', label: 'Categories' },
                             { id: 'users', label: 'User Management' },
                             { id: 'usertypes', label: 'User Types' }
@@ -442,7 +442,7 @@ const SuperAdminDashboard = () => {
                 {/* Owner Approvals */}
                 {activeTab === 'owners' && (
                     <div>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-6">Pending Owner Approvals</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-6">Pending Delivery Boy Approvals</h2>
                         {loading ? (
                             <div className="text-center py-4">Loading...</div>
                         ) : pendingOwners.length === 0 ? (
@@ -450,24 +450,24 @@ const SuperAdminDashboard = () => {
                         ) : (
                             <div className="bg-white shadow overflow-hidden sm:rounded-md">
                                 <ul className="divide-y divide-gray-200">
-                                    {pendingOwners.map((owner) => (
-                                        <li key={owner._id} className="px-6 py-4">
+                                    {pendingOwners.map((deliveryBoy) => (
+                                        <li key={deliveryBoy._id} className="px-6 py-4">
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <h3 className="text-lg font-medium text-gray-900">{owner.fullName}</h3>
-                                                    <p className="text-sm text-gray-500">{owner.email}</p>
-                                                    <p className="text-sm text-gray-500">{owner.mobile}</p>
+                                                    <h3 className="text-lg font-medium text-gray-900">{deliveryBoy.fullName}</h3>
+                                                    <p className="text-sm text-gray-500">{deliveryBoy.email}</p>
+                                                    <p className="text-sm text-gray-500">{deliveryBoy.mobile}</p>
                                                 </div>
                                                 <div className="flex space-x-2">
                                                     <button
-                                                        onClick={() => updateOwnerStatus(owner._id, 'approve')}
+                                                        onClick={() => updateOwnerStatus(deliveryBoy._id, 'approve')}
                                                         className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
                                                         disabled={loading}
                                                     >
                                                         Approve
                                                     </button>
                                                     <button
-                                                        onClick={() => updateOwnerStatus(owner._id, 'reject')}
+                                                        onClick={() => updateOwnerStatus(deliveryBoy._id, 'reject')}
                                                         className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
                                                         disabled={loading}
                                                     >

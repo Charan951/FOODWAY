@@ -1,13 +1,39 @@
-import React from 'react'
+import React, { useState } from 'react'
 import Nav from './NaV.JSX'
-import { useSelector } from 'react-redux'
-import { FaUtensils } from "react-icons/fa";
+import { useSelector, useDispatch } from 'react-redux'
+import { FaUtensils, FaStore, FaToggleOn, FaToggleOff } from "react-icons/fa";
 import { useNavigate } from 'react-router-dom';
 import { FaPen } from "react-icons/fa";
 import OwnerItemCard from './ownerItemCard';
+import axios from 'axios';
+import { serverUrl } from '../App';
+import { setMyShopData } from '../redux/ownerSlice';
+
 function OwnerDashboard() {
   const { myShopData } = useSelector(state => state.owner)
   const navigate = useNavigate()
+  const dispatch = useDispatch()
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+
+  const handleShopStatusToggle = async () => {
+    try {
+      setIsUpdatingStatus(true)
+      const newStatus = !myShopData.isOpen
+      
+      const result = await axios.put(`${serverUrl}/api/shop/update-status`, 
+        { isOpen: newStatus }, 
+        { withCredentials: true }
+      )
+      
+      // Update the shop data in Redux store
+      dispatch(setMyShopData(result.data.shop))
+      
+    } catch (error) {
+      console.log('Error updating shop status:', error)
+    } finally {
+      setIsUpdatingStatus(false)
+    }
+  }
 
   
   return (
@@ -32,6 +58,37 @@ function OwnerDashboard() {
       {myShopData &&
         <div className='w-full flex flex-col items-center gap-6 px-4 sm:px-6'>
           <h1 className='text-2xl sm:text-3xl text-gray-900 flex items-center gap-3 mt-8 text-center'><FaUtensils className='text-[#ff4d2d] w-14 h-14 ' />Welcome to {myShopData.name}</h1>
+
+          {/* Shop Status Toggle */}
+          <div className='bg-white shadow-lg rounded-xl p-4 border border-orange-100 w-full max-w-3xl'>
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-3'>
+                <FaStore className='text-[#ff4d2d] w-6 h-6' />
+                <div>
+                  <h3 className='text-lg font-semibold text-gray-800'>Shop Status</h3>
+                  <p className='text-sm text-gray-600'>
+                    Your shop is currently {myShopData.isOpen ? 'open' : 'closed'}
+                  </p>
+                </div>
+              </div>
+              <div className='flex items-center gap-3'>
+                <span className={`text-sm font-medium ${myShopData.isOpen ? 'text-green-600' : 'text-red-600'}`}>
+                  {myShopData.isOpen ? 'Open' : 'Closed'}
+                </span>
+                <button
+                  onClick={handleShopStatusToggle}
+                  disabled={isUpdatingStatus}
+                  className={`text-3xl transition-colors ${isUpdatingStatus ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-110'}`}
+                >
+                  {myShopData.isOpen ? (
+                    <FaToggleOn className='text-green-500' />
+                  ) : (
+                    <FaToggleOff className='text-gray-400' />
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
 
           <div className='bg-white shadow-lg rounded-xl overflow-hidden border border-orange-100 hover:shadow-2xl transition-all duration-300 w-full max-w-3xl relative'>
             <div className='absolute top-4 right-4 bg-[#ff4d2d] text-white p-2 rounded-full shadow-md hover:bg-orange-600 transition-colors cursor-pointer' onClick={()=>navigate("/create-edit-shop")}>

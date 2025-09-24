@@ -64,8 +64,8 @@ export const signIn=async (req,res) => {
             return res.status(400).json({message:"User does not exist."})
         }
         
-        // Check if owner is approved
-        if(user.role === "owner" && !user.isApproved){
+        // Check if delivery boy is approved
+        if(user.role === "deliveryBoy" && !user.isApproved){
             return res.status(403).json({message:"Your account is pending approval from admin."})
         }
         

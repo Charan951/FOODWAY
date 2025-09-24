@@ -30,7 +30,11 @@ const io=new Server(server,{
 
 app.set("io",io)
 
-
+// Middleware to attach socket.io to request object
+app.use((req, res, next) => {
+    req.io = io
+    next()
+})
 
 const port=process.env.PORT || 5000
 app.use(cors({

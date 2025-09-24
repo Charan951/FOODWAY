@@ -7,23 +7,54 @@ import { FaLocationDot } from "react-icons/fa6";
 import { FaUtensils } from "react-icons/fa";
 import FoodCard from '../components/FoodCard';
 import { FaArrowLeft } from "react-icons/fa";
+import { useSelector } from 'react-redux';
+
 function Shop() {
     const {shopId}=useParams()
     const [items,setItems]=useState([])
     const [shop,setShop]=useState([])
+    const [shopClosed, setShopClosed] = useState(false)
     const navigate=useNavigate()
+    const { socket } = useSelector(state => state.user)
+    
     const handleShop=async () => {
         try {
            const result=await axios.get(`${serverUrl}/api/item/get-by-shop/${shopId}`,{withCredentials:true}) 
            setShop(result.data.shop)
            setItems(result.data.items)
+           setShopClosed(!result.data.shop.isOpen)
         } catch (error) {
             console.log(error)
         }
     }
 
+    // Real-time shop status updates
+    useEffect(() => {
+        if (socket && shopId) {
+            socket.on('shopStatusUpdate', (data) => {
+                if (data.shopId === shopId) {
+                    console.log('Shop status update received for current shop:', data)
+                    setShop(prevShop => ({ ...prevShop, isOpen: data.isOpen }))
+                    setShopClosed(!data.isOpen)
+                    
+                    // If shop closed, clear items
+                    if (!data.isOpen) {
+                        setItems([])
+                    } else {
+                        // If shop reopened, refetch items
+                        handleShop()
+                    }
+                }
+            })
+
+            return () => {
+                socket.off('shopStatusUpdate')
+            }
+        }
+    }, [socket, shopId])
+
     useEffect(()=>{
-handleShop()
+        handleShop()
     },[shopId])
   return (
     <div className='min-h-screen bg-gray-50'>
@@ -47,13 +78,21 @@ handleShop()
 <div className='max-w-7xl mx-auto px-6 py-10'>
 <h2 className='flex items-center justify-center gap-3 text-3xl font-bold mb-10 text-gray-800'><FaUtensils color='red'/> Our Menu</h2>
 
-{items.length>0?(
+{shopClosed ? (
+    <div className='text-center py-20'>
+        <FaStore className='text-gray-400 text-6xl mx-auto mb-4' />
+        <h3 className='text-2xl font-bold text-gray-600 mb-2'>Shop is Currently Closed</h3>
+        <p className='text-gray-500'>This restaurant is temporarily closed. Please check back later.</p>
+    </div>
+) : items.length > 0 ? (
     <div className='flex flex-wrap justify-center gap-8'>
         {items.map((item)=>(
             <FoodCard key={item._id} data={item}/>
         ))}
     </div>
-):<p className='text-center text-gray-500 text-lg'>No Items Available</p>}
+) : (
+    <p className='text-center text-gray-500 text-lg'>No Items Available</p>
+)}
 </div>
 
 

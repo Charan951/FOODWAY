@@ -3,36 +3,36 @@ import Category from "../models/category.model.js";
 import UserType from "../models/userType.model.js";
 import uploadToCloudinary from "../utils/s3Upload.js";
 
-// Get all pending owners for approval
+// Get all pending delivery boys for approval
 export const getPendingOwners = async (req, res) => {
     try {
-        const pendingOwners = await User.find({ 
-            role: "owner", 
+        const pendingDeliveryBoys = await User.find({ 
+            role: "deliveryBoy", 
             isApproved: false 
         }).select("-password -resetOtp");
         
-        res.status(200).json(pendingOwners);
+        res.status(200).json(pendingDeliveryBoys);
     } catch (error) {
-        res.status(500).json({ message: `Error fetching pending owners: ${error}` });
+        res.status(500).json({ message: `Error fetching pending delivery boys: ${error}` });
     }
 };
 
-// Approve or reject owner
+// Approve or reject delivery boy
 export const updateOwnerStatus = async (req, res) => {
     try {
         const { userId, action } = req.body; // action: 'approve' or 'reject'
         
         if (action === 'approve') {
             await User.findByIdAndUpdate(userId, { isApproved: true });
-            res.status(200).json({ message: "Owner approved successfully" });
+            res.status(200).json({ message: "Delivery boy approved successfully" });
         } else if (action === 'reject') {
             await User.findByIdAndDelete(userId);
-            res.status(200).json({ message: "Owner rejected and removed" });
+            res.status(200).json({ message: "Delivery boy rejected and removed" });
         } else {
             res.status(400).json({ message: "Invalid action" });
         }
     } catch (error) {
-        res.status(500).json({ message: `Error updating owner status: ${error}` });
+        res.status(500).json({ message: `Error updating delivery boy status: ${error}` });
     }
 };
 
@@ -207,16 +207,16 @@ export const getUsersByRole = async (req, res) => {
 export const getDashboardStats = async (req, res) => {
     try {
         const userCount = await User.countDocuments({ role: "user" });
-        const ownerCount = await User.countDocuments({ role: "owner", isApproved: true });
-        const deliveryBoyCount = await User.countDocuments({ role: "deliveryBoy" });
-        const pendingOwnerCount = await User.countDocuments({ role: "owner", isApproved: false });
+        const ownerCount = await User.countDocuments({ role: "owner" });
+        const deliveryBoyCount = await User.countDocuments({ role: "deliveryBoy", isApproved: true });
+        const pendingDeliveryBoyCount = await User.countDocuments({ role: "deliveryBoy", isApproved: false });
         const categoryCount = await Category.countDocuments({ isActive: true });
         
         res.status(200).json({
             userCount,
             ownerCount,
             deliveryBoyCount,
-            pendingOwnerCount,
+            pendingOwnerCount: pendingDeliveryBoyCount, // Keep the same field name for frontend compatibility
             categoryCount
         });
     } catch (error) {

@@ -102,7 +102,8 @@ export const getShopByCity=async (req,res) => {
         const {city}=req.params
 
         const shops=await Shop.find({
-            city:{$regex:new RegExp(`^${city}$`, "i")}
+            city:{$regex:new RegExp(`^${city}$`, "i")},
+            isOpen: true  // Only return open shops
         }).populate('items')
         if(!shops){
             return res.status(400).json({message:"shops not found"})
@@ -110,5 +111,44 @@ export const getShopByCity=async (req,res) => {
         return res.status(200).json(shops)
     } catch (error) {
         return res.status(500).json({message:`get shop by city error ${error}`})
+    }
+}
+
+// Update shop open/closed status
+export const updateShopStatus = async (req, res) => {
+    try {
+        const { isOpen } = req.body
+        
+        if (typeof isOpen !== 'boolean') {
+            return res.status(400).json({ message: "isOpen must be a boolean value" })
+        }
+        
+        const shop = await Shop.findOneAndUpdate(
+            { owner: req.userId }, 
+            { isOpen }, 
+            { new: true }
+        ).populate("owner")
+        
+        if (!shop) {
+            return res.status(404).json({ message: "Shop not found" })
+        }
+        
+        // Emit real-time update to all connected clients
+        if (req.io) {
+            req.io.emit('shopStatusUpdate', {
+                shopId: shop._id,
+                isOpen: shop.isOpen,
+                shopName: shop.name,
+                city: shop.city
+            })
+        }
+        
+        return res.status(200).json({ 
+            message: `Shop ${isOpen ? 'opened' : 'closed'} successfully`, 
+            shop 
+        })
+        
+    } catch (error) {
+        return res.status(500).json({ message: `update shop status error ${error}` })
     }
 }

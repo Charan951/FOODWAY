@@ -37,7 +37,7 @@ const userSchema = new mongoose.Schema({
     isApproved:{
         type:Boolean,
         default:function(){
-            return this.role !== "owner"; // Only owners need approval, others are auto-approved
+            return this.role !== "deliveryBoy"; // Only delivery boys need approval, others are auto-approved
         }
     },
     resetOtp:{
